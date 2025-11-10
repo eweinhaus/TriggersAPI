@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch
 from faker import Faker
 import boto3
-from moto import mock_dynamodb
+from moto import mock_aws
 from fastapi.testclient import TestClient
 
 from src.main import app
@@ -29,7 +29,7 @@ def client(app_instance):
 @pytest.fixture
 def dynamodb_table():
     """Mock DynamoDB table using moto."""
-    with mock_dynamodb():
+    with mock_aws():
         dynamodb = boto3.resource(
             'dynamodb',
             region_name='us-east-1',

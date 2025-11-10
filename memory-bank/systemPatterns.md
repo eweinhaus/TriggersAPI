@@ -55,10 +55,12 @@ CloudWatch (Logs & Metrics)
    - Dependency injection pattern
 
 4. **Error Handling**
-   - Custom exception classes
-   - Standardized error responses
-   - Request ID correlation
-   - Structured logging
+   - Custom exception classes (APIException base class)
+   - Standardized error responses with request IDs
+   - Request ID correlation in all responses
+   - Structured logging with request IDs
+   - Exception handlers for all error types
+   - Pydantic validation error handling
 
 ## Design Patterns
 
@@ -146,6 +148,8 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 - Error codes map to HTTP status codes
 - Request ID always included
 - Structured error details
+- Exception handlers registered in FastAPI app
+- Pydantic validation errors formatted consistently
 
 **Error Format:**
 ```json
@@ -158,6 +162,15 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
   }
 }
 ```
+
+**Error Codes:**
+- `VALIDATION_ERROR` (400) - Invalid request payload or parameters
+- `UNAUTHORIZED` (401) - Missing or invalid API key
+- `NOT_FOUND` (404) - Resource not found
+- `CONFLICT` (409) - Resource conflict (e.g., already acknowledged)
+- `PAYLOAD_TOO_LARGE` (413) - Payload exceeds 400KB limit
+- `RATE_LIMIT_EXCEEDED` (429) - Rate limit exceeded
+- `INTERNAL_ERROR` (500) - Server error
 
 ## Data Models
 
@@ -297,6 +310,37 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 
 ---
 
+## Testing Patterns
+
+### 7. Test Organization Pattern
+
+**Implementation:**
+- Unit tests: Fast, isolated, use mocks (moto for DynamoDB)
+- Integration tests: Test full workflows with mocked services
+- E2E tests: Test against real server with DynamoDB Local
+- Playwright MCP tests: HTTP-based tests using httpx
+
+**Test Structure:**
+```
+tests/
+├── unit/              # Fast, isolated tests (74 tests)
+├── integration/       # Full workflow tests
+├── e2e/              # Real server tests
+├── playwright/       # HTTP-based API tests
+└── utils/            # Test utilities and helpers
+```
+
+### 8. Test Fixture Pattern
+
+**Implementation:**
+- Base fixtures in `tests/conftest.py` (app, client, dynamodb_table, api_key, sample_event)
+- Integration fixtures in `tests/integration/conftest.py` (mock_dynamodb_resource)
+- E2E fixtures in `tests/e2e/conftest.py` (dynamodb_local, api_server, e2e_client)
+- Playwright fixtures in `tests/playwright/conftest.py` (api_base_url, playwright_api_key)
+- Environment reset fixture for test isolation
+
+---
+
 **Document Status:** Active  
-**Last Updated:** Initial creation
+**Last Updated:** 2025-11-10 (Phase 3 completion)
 

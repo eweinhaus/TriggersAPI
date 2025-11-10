@@ -2,16 +2,16 @@
 
 import pytest
 import boto3
-from moto import mock_dynamodb
+from moto import mock_aws
 from fastapi.testclient import TestClient
 
 from src.main import app
 
 
 @pytest.fixture
-def mock_dynamodb_resource():
+def mock_dynamodb_resource(monkeypatch):
     """Mock DynamoDB resource using moto."""
-    with mock_dynamodb():
+    with mock_aws():
         dynamodb = boto3.resource(
             'dynamodb',
             region_name='us-east-1',
@@ -47,6 +47,10 @@ def mock_dynamodb_resource():
             ],
             BillingMode='PAY_PER_REQUEST'
         )
+        
+        # Patch the module-level table reference
+        monkeypatch.setattr('src.database._events_table', table)
+        monkeypatch.setenv('DYNAMODB_TABLE_EVENTS', 'triggers-api-events')
         
         yield dynamodb
 

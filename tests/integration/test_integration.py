@@ -8,7 +8,7 @@ from tests.utils.fixtures import generate_event_data, create_test_event_in_db
 class TestEventLifecycle:
     """Test complete event lifecycle"""
     
-    def test_complete_event_lifecycle(self, integration_client, api_key, dynamodb_table):
+    def test_complete_event_lifecycle(self, integration_client, api_key, mock_dynamodb_resource):
         """Test complete event lifecycle: create → inbox → ack → delete"""
         # Step 1: Create event
         event_data = generate_event_data()
@@ -65,7 +65,7 @@ class TestEventLifecycle:
 class TestPagination:
     """Test pagination functionality"""
     
-    def test_pagination_flow(self, integration_client, api_key, dynamodb_table):
+    def test_pagination_flow(self, integration_client, api_key, mock_dynamodb_resource):
         """Test pagination with multiple pages"""
         # Create 25 events
         event_ids = []
@@ -112,7 +112,7 @@ class TestPagination:
 class TestFiltering:
     """Test filtering functionality"""
     
-    def test_source_filter(self, integration_client, api_key, dynamodb_table):
+    def test_source_filter(self, integration_client, api_key, mock_dynamodb_resource):
         """Test filtering by source"""
         # Create events with different sources
         for source in ["source-a", "source-b", "source-a"]:
@@ -132,7 +132,7 @@ class TestFiltering:
         data = response.json()
         assert all(e["source"] == "source-a" for e in data["events"])
     
-    def test_event_type_filter(self, integration_client, api_key, dynamodb_table):
+    def test_event_type_filter(self, integration_client, api_key, mock_dynamodb_resource):
         """Test filtering by event_type"""
         # Create events with different types
         for event_type in ["type-a", "type-b", "type-a"]:
@@ -152,7 +152,7 @@ class TestFiltering:
         data = response.json()
         assert all(e["event_type"] == "type-a" for e in data["events"])
     
-    def test_combined_filters(self, integration_client, api_key, dynamodb_table):
+    def test_combined_filters(self, integration_client, api_key, mock_dynamodb_resource):
         """Test filtering by both source and event_type"""
         # Create events
         event_data = generate_event_data(source="source-a", event_type="type-a")

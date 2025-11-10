@@ -155,10 +155,12 @@ def main():
     unit_only = "--unit-only" in sys.argv
     skip_playwright = "--skip-playwright" in sys.argv
     
-    # Check Python version
-    if sys.version_info < (3, 11):
-        print_error("Python 3.11+ required")
+    # Check Python version (warn but don't fail for Python 3.9+)
+    if sys.version_info < (3, 9):
+        print_error("Python 3.9+ required")
         sys.exit(1)
+    elif sys.version_info < (3, 11):
+        print_warning(f"Python {sys.version_info.major}.{sys.version_info.minor} detected. Python 3.11+ recommended.")
     
     # Install dependencies if needed
     print_status("Checking dependencies...")
