@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Module-level table references
 _events_table = None
 _api_keys_table = None
+_idempotency_table = None
 
 
 def get_dynamodb_resource():
@@ -67,6 +68,16 @@ def _get_api_keys_table():
     return _api_keys_table
 
 
+def _get_idempotency_table():
+    """Get or initialize idempotency table reference."""
+    global _idempotency_table
+    if _idempotency_table is None:
+        dynamodb = get_dynamodb_resource()
+        table_name = os.getenv('DYNAMODB_TABLE_IDEMPOTENCY', 'triggers-api-idempotency')
+        _idempotency_table = dynamodb.Table(table_name)
+    return _idempotency_table
+
+
 def create_tables():
     """
     Create all required DynamoDB tables.
@@ -81,7 +92,64 @@ def create_tables():
         # Don't raise - tables might already exist
 
 
-def create_event(source: str, event_type: str, payload: dict, metadata: Optional[dict] = None) -> dict:
+def check_idempotency_key(idempotency_key: str) -> Optional[str]:
+    """
+    Check if idempotency key exists and return associated event_id.
+    
+    Args:
+        idempotency_key: Idempotency key to check
+        
+    Returns:
+        Event ID if found, None otherwise
+    """
+    table = _get_idempotency_table()
+    
+    try:
+        response = table.get_item(
+            Key={'idempotency_key': idempotency_key}
+        )
+        item = response.get('Item')
+        if item:
+            return item.get('event_id')
+        return None
+    except ClientError:
+        return None
+
+
+def store_idempotency_key(idempotency_key: str, event_id: str) -> bool:
+    """
+    Store idempotency key mapping with TTL.
+    
+    Args:
+        idempotency_key: Idempotency key
+        event_id: Associated event ID
+        
+    Returns:
+        True if stored successfully, False if key already exists (race condition)
+    """
+    table = _get_idempotency_table()
+    created_at = get_iso_timestamp()
+    ttl = int(time.time()) + (24 * 60 * 60)  # 24 hours
+    
+    try:
+        table.put_item(
+            Item={
+                'idempotency_key': idempotency_key,
+                'event_id': event_id,
+                'created_at': created_at,
+                'ttl': ttl
+            },
+            ConditionExpression='attribute_not_exists(idempotency_key)'
+        )
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            # Key already exists (race condition)
+            return False
+        raise
+
+
+def create_event(source: str, event_type: str, payload: dict, metadata: Optional[dict] = None, idempotency_key: Optional[str] = None) -> dict:
     """
     Create a new event in DynamoDB.
     
@@ -90,10 +158,21 @@ def create_event(source: str, event_type: str, payload: dict, metadata: Optional
         event_type: Type of event (e.g., 'user.created')
         payload: Event payload (any JSON-serializable dict)
         metadata: Optional metadata dict
+        idempotency_key: Optional idempotency key for duplicate prevention
         
     Returns:
-        Created event dictionary
+        Created or existing event dictionary
     """
+    # Check idempotency if key provided
+    if idempotency_key:
+        existing_event_id = check_idempotency_key(idempotency_key)
+        if existing_event_id:
+            # Return existing event
+            existing_event = get_event(existing_event_id)
+            if existing_event:
+                return existing_event
+    
+    # Create new event
     event_id = generate_uuid()
     created_at = get_iso_timestamp()
     status = "pending"
@@ -114,6 +193,10 @@ def create_event(source: str, event_type: str, payload: dict, metadata: Optional
     
     table = _get_events_table()
     table.put_item(Item=event)
+    
+    # Store idempotency key if provided
+    if idempotency_key:
+        store_idempotency_key(idempotency_key, event_id)
     
     return event
 

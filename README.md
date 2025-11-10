@@ -4,7 +4,7 @@ A unified, real-time event ingestion system that enables external systems to sen
 
 ## Project Status
 
-**Current Phase:** Phase 2 - AWS Infrastructure & Deployment (In Progress)
+**Current Phase:** Phase 4 - Developer Experience (P1) ✅ Completed
 
 ## Local Development Setup
 
@@ -41,6 +41,8 @@ A unified, real-time event ingestion system that enables external systems to sen
 5. **Start FastAPI server:**
    ```bash
    uvicorn src.main:app --reload --port 8080
+   # Or use the test server script:
+   ./scripts/start_test_server.sh
    ```
 
 6. **Verify setup:**
@@ -67,6 +69,104 @@ Health check endpoint (no authentication required).
 ### POST /v1/events
 Ingest a new event.
 
+**Request Body:**
+```json
+{
+  "source": "string",
+  "event_type": "string",
+  "payload": {},
+  "metadata": {
+    "idempotency_key": "string (optional)",
+    "priority": "low|normal|high (optional)",
+    "correlation_id": "string (optional)"
+  }
+}
+```
+
+**Idempotency:** Include `idempotency_key` in metadata to prevent duplicate event creation. If an event with the same idempotency key already exists, the existing event is returned instead of creating a new one. Idempotency keys expire after 24 hours.
+
+**Response (201 Created):**
+```json
+{
+  "event_id": "uuid-v4",
+  "created_at": "ISO 8601",
+  "status": "pending",
+  "message": "Event ingested successfully",
+  "request_id": "uuid-v4"
+}
+```
+
+### GET /v1/events/{event_id}
+Retrieve detailed information about a specific event.
+
+**Path Parameters:**
+- `event_id`: UUID v4 of the event
+
+**Response (200 OK):**
+```json
+{
+  "event_id": "uuid-v4",
+  "created_at": "ISO 8601",
+  "source": "string",
+  "event_type": "string",
+  "payload": {},
+  "status": "pending|acknowledged",
+  "metadata": {},
+  "acknowledged_at": "ISO 8601 (optional, only if acknowledged)",
+  "request_id": "uuid-v4"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Event not found (includes suggestion in error details)
+- `401 Unauthorized`: Invalid API key
+
+## Error Handling
+
+All error responses follow a standardized format with enhanced context and suggestions:
+
+**Error Response Format:**
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {
+      "field": "field_name (for validation errors)",
+      "issue": "Description of the issue",
+      "suggestion": "Actionable suggestion to fix the issue",
+      "event_id": "uuid (for not found/conflict errors)",
+      "current_status": "status (for conflict errors)"
+    },
+    "request_id": "uuid-v4"
+  }
+}
+```
+
+**Error Codes:**
+- `VALIDATION_ERROR` (400): Invalid request payload or parameters
+- `UNAUTHORIZED` (401): Missing or invalid API key
+- `NOT_FOUND` (404): Resource not found (includes suggestion)
+- `CONFLICT` (409): Resource conflict (e.g., already acknowledged)
+- `PAYLOAD_TOO_LARGE` (413): Payload exceeds 400KB limit
+- `RATE_LIMIT_EXCEEDED` (429): Rate limit exceeded
+- `INTERNAL_ERROR` (500): Server error
+
+**Example Error Response:**
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Event with ID 'abc-123' was not found",
+    "details": {
+      "event_id": "abc-123",
+      "suggestion": "Verify the event ID is correct and the event exists"
+    },
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
 ### GET /v1/inbox
 Retrieve pending events with pagination and filtering.
 
@@ -78,9 +178,21 @@ Delete an event.
 
 ## Testing
 
-Phase 3 includes comprehensive automated testing with >80% code coverage.
+Phase 4 includes comprehensive automated testing with **87% code coverage** (exceeds 80% requirement).
 
-### Running Tests
+**Test Statistics:**
+- Unit tests: 117 tests passing
+- Integration tests: Full workflow coverage
+- E2E tests: Real server testing
+- Playwright MCP tests: HTTP-based API testing
+
+### Quick Test Commands
+
+**Complete test execution (recommended):**
+```bash
+./scripts/test_complete.sh
+```
+This runs unit tests, generates coverage reports, and verifies the API server can start.
 
 **Run all tests (single command):**
 ```bash
@@ -91,18 +203,40 @@ python scripts/run_tests.py
 
 **Run specific test suites:**
 ```bash
-# Unit tests only
-pytest tests/unit/ -v
+# Unit tests only (117 tests, 87% coverage)
+pytest tests/unit/ -v --cov=src --cov-report=html
 
 # Integration tests only
 pytest tests/integration/ -v
 
-# E2E tests only (requires DynamoDB Local)
+# E2E tests (requires DynamoDB Local)
 pytest tests/e2e/ -v
 
-# Playwright MCP tests only
+# Playwright MCP tests (requires running API server)
+# First, start the server:
+./scripts/start_test_server.sh
+# Then in another terminal:
 pytest tests/playwright/ -v
 ```
+
+### Test Coverage
+
+- **Current Coverage:** 87% (exceeds 80% requirement)
+- **Unit Tests:** 117 tests, all passing
+- **Coverage Report:** Generated in `htmlcov/index.html` after running tests
+
+### Starting API Server for Testing
+
+**For E2E/Playwright tests, start the server:**
+```bash
+./scripts/start_test_server.sh
+```
+
+This script:
+- Checks if DynamoDB Local is running (starts it if needed)
+- Sets up environment variables for local testing
+- Starts FastAPI server on port 8080
+- Handles port conflicts automatically
 
 **Run with coverage:**
 ```bash

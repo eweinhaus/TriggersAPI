@@ -10,6 +10,8 @@ def api_base_url():
     Base URL for API (local or deployed).
     
     Can be overridden with environment variable API_BASE_URL.
+    Defaults to localhost:8080 for local testing.
+    For deployed API, set: export API_BASE_URL=https://your-api-url.com
     """
     return os.getenv('API_BASE_URL', 'http://localhost:8080')
 

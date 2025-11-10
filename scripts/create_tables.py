@@ -157,6 +157,56 @@ def create_api_keys_table(dynamodb):
         raise
 
 
+def create_idempotency_table(dynamodb):
+    """
+    Create the idempotency table.
+    
+    Args:
+        dynamodb: boto3 DynamoDB resource
+    """
+    table_name = os.getenv('DYNAMODB_TABLE_IDEMPOTENCY', 'triggers-api-idempotency')
+    
+    try:
+        # Check if table exists
+        table = dynamodb.Table(table_name)
+        table.load()
+        print(f"Table {table_name} already exists")
+        return table
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ResourceNotFoundException':
+            raise
+    
+    # Create table
+    try:
+        table = dynamodb.create_table(
+            TableName=table_name,
+            KeySchema=[
+                {
+                    'AttributeName': 'idempotency_key',
+                    'KeyType': 'HASH'  # Partition key
+                }
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'idempotency_key',
+                    'AttributeType': 'S'
+                }
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        
+        # Wait for table to be created
+        table.wait_until_exists()
+        print(f"Table {table_name} created successfully")
+        return table
+        
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            print(f"Table {table_name} already exists")
+            return dynamodb.Table(table_name)
+        raise
+
+
 def create_tables():
     """Create all required DynamoDB tables."""
     dynamodb = get_dynamodb_resource()
@@ -164,6 +214,7 @@ def create_tables():
     print("Creating DynamoDB tables...")
     create_events_table(dynamodb)
     create_api_keys_table(dynamodb)
+    create_idempotency_table(dynamodb)
     print("All tables created successfully")
 
 

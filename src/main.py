@@ -88,21 +88,37 @@ async def pydantic_validation_handler(request: Request, exc: PydanticValidationE
     """Handle Pydantic validation errors."""
     request_id = getattr(request.state, 'request_id', generate_uuid())
     
-    errors = []
+    from src.utils import format_validation_error
+    
+    # Get first error for main message
+    first_error = exc.errors()[0]
+    field_path = ".".join(str(loc) for loc in first_error["loc"])
+    error_msg = first_error["msg"]
+    
+    # Format enhanced error details
+    details = format_validation_error(
+        field=field_path,
+        issue=error_msg,
+        value=first_error.get("input")
+    )
+    
+    # Include all validation errors
+    all_errors = []
     for error in exc.errors():
-        errors.append({
+        all_errors.append({
             "field": ".".join(str(loc) for loc in error["loc"]),
             "message": error["msg"],
             "type": error["type"]
         })
+    details["validation_errors"] = all_errors
     
     return JSONResponse(
         status_code=400,
         content={
             "error": {
                 "code": "VALIDATION_ERROR",
-                "message": "Invalid request payload",
-                "details": {"validation_errors": errors},
+                "message": f"The '{field_path}' field {error_msg.lower()}",
+                "details": details,
                 "request_id": request_id
             }
         }

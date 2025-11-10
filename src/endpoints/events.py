@@ -2,11 +2,11 @@
 
 from uuid import UUID
 from fastapi import APIRouter, Request, Depends, HTTPException
-from src.models import EventCreate, EventResponse, AckResponse, DeleteResponse
+from src.models import EventCreate, EventResponse, EventDetailResponse, AckResponse, DeleteResponse
 from src.database import create_event, acknowledge_event, delete_event, get_event
 from src.auth import get_api_key
 from src.exceptions import NotFoundError, ConflictError, PayloadTooLargeError, InternalError
-from src.utils import validate_payload_size
+from src.utils import validate_payload_size, format_not_found_error, format_conflict_error
 from botocore.exceptions import ClientError
 
 router = APIRouter()
@@ -22,6 +22,7 @@ async def create_event_endpoint(
     Create a new event.
     
     Requires API key authentication.
+    Supports idempotency via metadata.idempotency_key.
     """
     # Validate payload size
     try:
@@ -29,13 +30,19 @@ async def create_event_endpoint(
     except ValueError as e:
         raise PayloadTooLargeError(str(e))
     
+    # Extract idempotency key from metadata
+    idempotency_key = None
+    if event_data.metadata and 'idempotency_key' in event_data.metadata:
+        idempotency_key = event_data.metadata.get('idempotency_key')
+    
     # Create event in database
     try:
         event = create_event(
             source=event_data.source,
             event_type=event_data.event_type,
             payload=event_data.payload,
-            metadata=event_data.metadata
+            metadata=event_data.metadata,
+            idempotency_key=idempotency_key
         )
     except Exception as e:
         raise InternalError(f"Failed to create event: {e}")
@@ -47,6 +54,46 @@ async def create_event_endpoint(
         created_at=event['created_at'],
         status=event['status'],
         message="Event ingested successfully",
+        request_id=request_id
+    )
+
+
+@router.get("/events/{event_id}", response_model=EventDetailResponse)
+async def get_event_endpoint(
+    event_id: UUID,
+    request: Request,
+    api_key: str = Depends(get_api_key)
+):
+    """
+    Retrieve detailed information about a specific event.
+    
+    Requires API key authentication.
+    """
+    event_id_str = str(event_id)
+    request_id = request.state.request_id
+    
+    # Get event from database
+    event = get_event(event_id_str)
+    
+    if event is None:
+        raise NotFoundError(
+            f"Event with ID '{event_id_str}' was not found",
+            details={
+                "event_id": event_id_str,
+                "suggestion": "Verify the event ID is correct and the event exists"
+            }
+        )
+    
+    # Build response
+    return EventDetailResponse(
+        event_id=event['event_id'],
+        created_at=event['created_at'],
+        source=event['source'],
+        event_type=event['event_type'],
+        payload=event['payload'],
+        status=event['status'],
+        metadata=event.get('metadata'),
+        acknowledged_at=event.get('acknowledged_at'),
         request_id=request_id
     )
 
@@ -72,10 +119,23 @@ async def acknowledge_event_endpoint(
         # Check if event exists
         event = get_event(event_id_str)
         if event is None:
-            raise NotFoundError(f"Event {event_id_str} not found")
+            raise NotFoundError(
+                f"Event with ID '{event_id_str}' was not found",
+                details=format_not_found_error("Event", event_id_str)
+            )
         else:
             # Event exists but acknowledge failed (already acknowledged)
-            raise ConflictError(f"Event {event_id_str} already acknowledged")
+            raise ConflictError(
+                f"Event '{event_id_str}' has already been acknowledged",
+                details=format_conflict_error(
+                    "Event",
+                    event_id_str,
+                    {
+                        "current_status": event.get('status', 'acknowledged'),
+                        "acknowledged_at": event.get('acknowledged_at')
+                    }
+                )
+            )
     
     return AckResponse(
         event_id=updated_event['event_id'],

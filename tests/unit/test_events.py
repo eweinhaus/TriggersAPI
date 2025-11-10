@@ -153,6 +153,51 @@ class TestCreateEvent:
             # Should return 500 Internal Error
             assert response.status_code == 500
             assert_request_id_present(response)
+    
+    def test_create_event_with_idempotency_key(self, client, auth_headers, sample_event):
+        """Test event creation with idempotency key (first time - creates new)."""
+        sample_event['metadata'] = {'idempotency_key': 'test-key-123'}
+        
+        with patch('src.endpoints.events.create_event') as mock_create:
+            mock_create.return_value = {
+                'event_id': 'test-event-id',
+                'created_at': '2024-01-01T12:00:00.000000Z',
+                'status': 'pending'
+            }
+            
+            response = client.post("/v1/events", json=sample_event, headers=auth_headers)
+            
+            assert_success_response(response, expected_status=201)
+            # Verify idempotency_key was passed
+            assert mock_create.called
+            call_kwargs = mock_create.call_args[1]
+            assert call_kwargs.get('idempotency_key') == 'test-key-123'
+    
+    def test_create_event_idempotency_returns_existing(self, client, auth_headers, sample_event):
+        """Test event creation with same idempotency key returns existing event."""
+        sample_event['metadata'] = {'idempotency_key': 'test-key-123'}
+        
+        existing_event = {
+            'event_id': 'existing-event-id',
+            'created_at': '2024-01-01T11:00:00.000000Z',
+            'status': 'pending'
+        }
+        
+        with patch('src.endpoints.events.create_event') as mock_create:
+            mock_create.return_value = existing_event
+            
+            # First call
+            response1 = client.post("/v1/events", json=sample_event, headers=auth_headers)
+            assert_success_response(response1, expected_status=201)
+            
+            # Second call with same idempotency key
+            response2 = client.post("/v1/events", json=sample_event, headers=auth_headers)
+            assert_success_response(response2, expected_status=201)
+            
+            # Both should return same event_id
+            data1 = response1.json()
+            data2 = response2.json()
+            assert data1['event_id'] == data2['event_id'] == 'existing-event-id'
 
 
 class TestAcknowledgeEvent:
@@ -294,6 +339,123 @@ class TestDeleteEvent:
         headers = {"X-API-Key": "invalid-key"}
         
         response = client.delete(f"/v1/events/{event_id}", headers=headers)
+        
+        assert_error_response(response, "UNAUTHORIZED", expected_status=401)
+
+
+class TestGetEvent:
+    """Tests for GET /v1/events/{event_id} endpoint"""
+    
+    def test_get_event_success(self, client, auth_headers):
+        """Test successful event retrieval."""
+        event_id = "550e8400-e29b-41d4-a716-446655440000"
+        
+        with patch('src.endpoints.events.get_event') as mock_get:
+            mock_get.return_value = {
+                'event_id': event_id,
+                'created_at': '2024-01-01T12:00:00.000000Z',
+                'source': 'test-source',
+                'event_type': 'test-type',
+                'payload': {'key': 'value'},
+                'status': 'pending',
+                'metadata': None
+            }
+            
+            response = client.get(f"/v1/events/{event_id}", headers=auth_headers)
+            
+            assert_success_response(response, expected_status=200)
+            assert_request_id_present(response)
+            
+            data = response.json()
+            assert data['event_id'] == event_id
+            assert data['source'] == 'test-source'
+            assert data['event_type'] == 'test-type'
+            assert data['payload'] == {'key': 'value'}
+            assert data['status'] == 'pending'
+            assert 'request_id' in data
+    
+    def test_get_event_not_found(self, client, auth_headers):
+        """Test 404 for non-existent event."""
+        event_id = "550e8400-e29b-41d4-a716-446655440000"
+        
+        with patch('src.endpoints.events.get_event') as mock_get:
+            mock_get.return_value = None
+            
+            response = client.get(f"/v1/events/{event_id}", headers=auth_headers)
+            
+            assert_error_response(response, "NOT_FOUND", expected_status=404)
+            assert_request_id_present(response)
+            
+            error = response.json()['error']
+            assert 'suggestion' in error['details']
+            assert error['details']['event_id'] == event_id
+    
+    def test_get_event_with_acknowledged(self, client, auth_headers):
+        """Test retrieving acknowledged event includes acknowledged_at."""
+        event_id = "550e8400-e29b-41d4-a716-446655440000"
+        
+        with patch('src.endpoints.events.get_event') as mock_get:
+            mock_get.return_value = {
+                'event_id': event_id,
+                'created_at': '2024-01-01T12:00:00.000000Z',
+                'source': 'test-source',
+                'event_type': 'test-type',
+                'payload': {'key': 'value'},
+                'status': 'acknowledged',
+                'acknowledged_at': '2024-01-01T13:00:00.000000Z',
+                'metadata': None
+            }
+            
+            response = client.get(f"/v1/events/{event_id}", headers=auth_headers)
+            
+            assert_success_response(response, expected_status=200)
+            data = response.json()
+            assert data['status'] == 'acknowledged'
+            assert data['acknowledged_at'] == '2024-01-01T13:00:00.000000Z'
+    
+    def test_get_event_with_metadata(self, client, auth_headers):
+        """Test retrieving event with metadata."""
+        event_id = "550e8400-e29b-41d4-a716-446655440000"
+        
+        with patch('src.endpoints.events.get_event') as mock_get:
+            mock_get.return_value = {
+                'event_id': event_id,
+                'created_at': '2024-01-01T12:00:00.000000Z',
+                'source': 'test-source',
+                'event_type': 'test-type',
+                'payload': {'key': 'value'},
+                'status': 'pending',
+                'metadata': {'priority': 'high', 'correlation_id': 'test-123'}
+            }
+            
+            response = client.get(f"/v1/events/{event_id}", headers=auth_headers)
+            
+            assert_success_response(response, expected_status=200)
+            data = response.json()
+            assert data['metadata'] == {'priority': 'high', 'correlation_id': 'test-123'}
+    
+    def test_get_event_invalid_uuid(self, client, auth_headers):
+        """Test GET with invalid UUID format."""
+        invalid_id = "not-a-uuid"
+        
+        response = client.get(f"/v1/events/{invalid_id}", headers=auth_headers)
+        
+        assert_error_response(response, "VALIDATION_ERROR", expected_status=422)
+    
+    def test_get_event_missing_api_key(self, client):
+        """Test GET without API key."""
+        event_id = "550e8400-e29b-41d4-a716-446655440000"
+        
+        response = client.get(f"/v1/events/{event_id}")
+        
+        assert_error_response(response, "UNAUTHORIZED", expected_status=401)
+    
+    def test_get_event_invalid_api_key(self, client):
+        """Test GET with invalid API key."""
+        event_id = "550e8400-e29b-41d4-a716-446655440000"
+        headers = {"X-API-Key": "invalid-key"}
+        
+        response = client.get(f"/v1/events/{event_id}", headers=headers)
         
         assert_error_response(response, "UNAUTHORIZED", expected_status=401)
 

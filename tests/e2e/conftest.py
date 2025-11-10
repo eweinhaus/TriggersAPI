@@ -80,6 +80,16 @@ def dynamodb_local():
 
 def run_server():
     """Run FastAPI server in a separate thread."""
+    # Ensure environment is set for local testing
+    os.environ.setdefault('DYNAMODB_ENDPOINT_URL', 'http://localhost:8000')
+    os.environ.setdefault('AWS_REGION', 'us-east-1')
+    os.environ.setdefault('AWS_ACCESS_KEY_ID', 'test')
+    os.environ.setdefault('AWS_SECRET_ACCESS_KEY', 'test')
+    os.environ.setdefault('AUTH_MODE', 'local')
+    os.environ.setdefault('LOG_LEVEL', 'INFO')
+    os.environ.setdefault('DYNAMODB_TABLE_EVENTS', 'triggers-api-events')
+    os.environ.setdefault('DYNAMODB_TABLE_API_KEYS', 'triggers-api-keys')
+    
     uvicorn.run(app, host="127.0.0.1", port=8081, log_level="error")
 
 
