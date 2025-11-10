@@ -1,0 +1,96 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Python packages installed in project root (should be in venv or installed by SAM)
+*.dist-info/
+*.egg-info/
+bin/
+# Common Python package directories (installed via pip install -t .)
+_yaml/
+annotated_doc*/
+annotated_types/
+anyio/
+boto3/
+botocore/
+click/
+dateutil/
+dotenv/
+exceptiongroup/
+fastapi/
+h11/
+httptools/
+idna/
+jmespath/
+mangum/
+pydantic*/
+python_dateutil/
+python_dotenv/
+pyyaml/
+s3transfer/
+sniffio/
+starlette/
+typing_extensions/
+typing_inspection/
+urllib3/
+uvicorn/
+uvloop/
+watchfiles/
+websockets/
+six/
+yaml/
+# Python files installed in root (from pip install -t .)
+six.py
+typing_extensions.py

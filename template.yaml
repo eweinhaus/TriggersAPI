@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Zapier Triggers API
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    Description: Deployment stage
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        DYNAMODB_TABLE_EVENTS: !Ref EventsTable
+        DYNAMODB_TABLE_KEYS: !Ref ApiKeysTable
+        AWS_REGION: !Ref AWS::Region
+        AUTH_MODE: aws
+        LOG_LEVEL: INFO
+
+Resources:
+  # Lambda Function
+  TriggersApiFunction:
+    Type: AWS::Serverless::Function
+    Runtime: python3.11
+    Handler: src.main.handler
+    CodeUri: .
+    Description: Zapier Triggers API Lambda function
+    Policies:
+      - Version: '2012-10-17'
+        Statement:
+          # DynamoDB Events Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:GetItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Resource: !GetAtt EventsTable.Arn
+          # DynamoDB Events Table GSI Query Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:Query
+            Resource:
+              - !GetAtt EventsTable.Arn
+              - !Sub '${EventsTable.Arn}/index/status-created_at-index'
+          # DynamoDB API Keys Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource: !GetAtt ApiKeysTable.Arn
+          # CloudWatch Logs Permissions
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/triggers-api-${Stage}:*'
+    Events:
+      ApiEvent:
+        Type: Api
+        Properties:
+          RestApiId: !Ref TriggersApi
+          Path: /{proxy+}
+          Method: ANY
+
+  # API Gateway
+  TriggersApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-API-Key,X-Request-ID'"
+        AllowOrigin: "'*'"
+        MaxAge: "'3600'"
+      EndpointConfiguration:
+        Type: REGIONAL
+
+  # DynamoDB Events Table
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub triggers-api-events-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: event_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: event_id
+          KeyType: HASH
+        - AttributeName: created_at
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: status-created_at-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      DeletionPolicy: Retain
+
+  # DynamoDB API Keys Table
+  ApiKeysTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub triggers-api-keys-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: api_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: api_key
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      DeletionPolicy: Retain
+
+  # CloudWatch Log Group
+  TriggersApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/triggers-api-${Stage}
+      RetentionInDays: 7
+      DeletionPolicy: Delete
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${TriggersApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiUrl
+  EventsTableName:
+    Description: DynamoDB Events table name
+    Value: !Ref EventsTable
+    Export:
+      Name: !Sub ${AWS::StackName}-EventsTableName
+  ApiKeysTableName:
+    Description: DynamoDB API Keys table name
+    Value: !Ref ApiKeysTable
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiKeysTableName
+

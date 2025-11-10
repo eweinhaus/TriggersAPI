@@ -1,0 +1,97 @@
+graph TB
+    subgraph "Phase 1: Core API"
+        LAMBDA_LOCAL[FastAPI App<br/>Local Development]
+        EVENTS_LOCAL[(Events Table<br/>DynamoDB Local)]
+        KEYS_LOCAL[(API Keys Table<br/>DynamoDB Local)]
+    end
+    
+    subgraph "Phase 2: AWS Infrastructure"
+        API[API Gateway<br/>REST API<br/>CORS]
+        LAMBDA[FastAPI Lambda Handler<br/>Event Processing]
+        EVENTS[(Events Table<br/>PK: event_id<br/>SK: timestamp)]
+        INBOX[(Inbox GSI<br/>PK: status<br/>SK: timestamp)]
+        KEYS[(API Keys Table<br/>PK: api_key)]
+        CLOUDWATCH[CloudWatch<br/>Logs & Metrics]
+    end
+    
+    subgraph "Phase 3: Testing"
+        TESTS[Unit & Integration Tests<br/>pytest + moto]
+    end
+    
+    subgraph "Phase 4: P1 Features"
+        GET_EVENT[GET /events/:id<br/>Event Details]
+        STATUS[Status Tracking]
+    end
+    
+    subgraph "Phase 5: Documentation"
+        DOCS[OpenAPI /docs<br/>Auto-generated]
+        PYTHON_CLIENT[Python Example Client]
+        JS_CLIENT[JavaScript Example Client]
+    end
+    
+    subgraph "Phase 6: Frontend"
+        WEB[React Dashboard<br/>Material-UI]
+    end
+    
+    subgraph "API Endpoints"
+        POST_EVENT[POST /events<br/>Event Ingestion]
+        GET_INBOX[GET /inbox<br/>List Undelivered Events]
+        ACK_EVENT[POST /events/:id/ack<br/>Acknowledge Event]
+        DELETE_EVENT[DELETE /events/:id<br/>Delete Event]
+    end
+    
+    subgraph "Authentication"
+        AUTH[API Key Validation<br/>X-API-Key Header]
+    end
+    
+    %% Phase 1 connections
+    LAMBDA_LOCAL --> POST_EVENT
+    LAMBDA_LOCAL --> GET_INBOX
+    LAMBDA_LOCAL --> ACK_EVENT
+    LAMBDA_LOCAL --> DELETE_EVENT
+    POST_EVENT --> EVENTS_LOCAL
+    GET_INBOX --> EVENTS_LOCAL
+    ACK_EVENT --> EVENTS_LOCAL
+    DELETE_EVENT --> EVENTS_LOCAL
+    AUTH --> KEYS_LOCAL
+    
+    %% Phase 2 connections
+    API --> AUTH
+    AUTH --> KEYS
+    AUTH --> LAMBDA
+    LAMBDA --> POST_EVENT
+    LAMBDA --> GET_INBOX
+    LAMBDA --> ACK_EVENT
+    LAMBDA --> DELETE_EVENT
+    POST_EVENT --> EVENTS
+    GET_INBOX --> INBOX
+    ACK_EVENT --> EVENTS
+    DELETE_EVENT --> EVENTS
+    LAMBDA --> CLOUDWATCH
+    
+    %% Phase 4 connections
+    LAMBDA --> GET_EVENT
+    GET_EVENT --> EVENTS
+    LAMBDA --> STATUS
+    
+    %% Phase 5 connections
+    LAMBDA --> DOCS
+    PYTHON_CLIENT --> API
+    JS_CLIENT --> API
+    
+    %% Phase 6 connections
+    WEB --> API
+    
+    %% Styling
+    style LAMBDA_LOCAL fill:#ffe1f5
+    style EVENTS_LOCAL fill:#e1ffe1
+    style KEYS_LOCAL fill:#e1ffe1
+    style API fill:#fff4e1
+    style LAMBDA fill:#ffe1f5
+    style EVENTS fill:#e1ffe1
+    style INBOX fill:#e1ffe1
+    style KEYS fill:#e1ffe1
+    style CLOUDWATCH fill:#f0e1ff
+    style WEB fill:#e1f5ff
+    style DOCS fill:#e1f5ff
+    style TESTS fill:#fff4e1

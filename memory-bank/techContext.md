@@ -1,0 +1,294 @@
+# Technical Context: Zapier Triggers API
+
+## Technology Stack
+
+### Backend
+
+**Core Framework:**
+- **Python 3.11+** - Programming language
+- **FastAPI 0.104.0+** - Web framework
+- **Uvicorn** - ASGI server
+- **Pydantic 2.0.0+** - Data validation
+
+**AWS Services:**
+- **AWS Lambda** - Serverless compute (Python runtime)
+- **API Gateway** - REST API interface
+- **DynamoDB** - NoSQL database
+- **CloudWatch** - Logging and metrics
+- **S3 + CloudFront** - Frontend hosting (Phase 6)
+
+**AWS SDK:**
+- **boto3 1.28.0+** - AWS service client
+
+**Deployment:**
+- **AWS SAM** - Infrastructure as code
+- **SAM CLI** - Local testing and deployment
+
+### Frontend (Phase 6)
+
+- **React 18+** - UI framework
+- **Material-UI (MUI) v5** - Component library
+- **Axios** - HTTP client
+- **Node.js 18+** - Runtime
+
+### Development Tools
+
+- **Docker & Docker Compose** - DynamoDB Local
+- **pytest** - Testing framework
+- **moto** - AWS service mocking
+- **httpx** - HTTP client for testing
+- **Playwright MCP** - Browser automation (Phase 3, 6)
+- **Cursor Browser Extension** - Browser testing (Phase 6)
+
+## Development Setup
+
+### Local Development (Phase 1)
+
+**Requirements:**
+- Python 3.11+
+- Docker & Docker Compose
+- Virtual environment (venv or similar)
+
+**Environment Variables:**
+```bash
+DYNAMODB_ENDPOINT_URL=http://localhost:8000
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+AUTH_MODE=local
+LOG_LEVEL=INFO
+```
+
+**Local Services:**
+- DynamoDB Local (Docker): `http://localhost:8000`
+- FastAPI Server: `http://localhost:8000` (different port or use 8080)
+
+### AWS Deployment (Phase 2+)
+
+**Requirements:**
+- AWS account with appropriate permissions
+- AWS CLI installed and configured
+- SAM CLI installed
+
+**Environment Variables:**
+```bash
+AWS_REGION=us-east-1
+AUTH_MODE=aws
+LOG_LEVEL=INFO
+```
+
+## Project Structure
+
+```
+triggers-api/
+├── src/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI app entry point
+│   ├── models.py            # Pydantic models
+│   ├── database.py          # DynamoDB client wrapper
+│   ├── auth.py              # API key validation
+│   ├── exceptions.py        # Custom exceptions
+│   └── endpoints/
+│       ├── __init__.py
+│       ├── events.py        # Event endpoints
+│       ├── inbox.py         # Inbox endpoints
+│       └── health.py         # Health check
+├── tests/
+│   ├── unit/                # Unit tests
+│   ├── integration/         # Integration tests
+│   ├── e2e/                 # End-to-end tests
+│   ├── playwright/         # Playwright MCP tests
+│   └── conftest.py          # pytest fixtures
+├── scripts/
+│   ├── create_tables.py     # Initialize DynamoDB tables
+│   ├── seed_api_keys.py     # Create test API keys
+│   ├── local_setup.sh       # Local development setup
+│   └── run_tests.sh         # Test automation script
+├── frontend/                # Phase 6
+│   ├── src/
+│   ├── tests/
+│   └── package.json
+├── template.yaml             # SAM template
+├── docker-compose.yml        # DynamoDB Local
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
+## Dependencies
+
+### Backend Dependencies (`requirements.txt`)
+
+```
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+boto3>=1.28.0
+python-dotenv>=1.0.0
+```
+
+### Development Dependencies
+
+```
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+moto>=4.2.0
+httpx>=0.25.0
+```
+
+### Frontend Dependencies (Phase 6)
+
+```
+react>=18.0.0
+@mui/material>=5.0.0
+axios>=1.6.0
+```
+
+## Technical Constraints
+
+### Performance Targets
+
+- **Event Ingestion Latency:** < 100ms (p95)
+- **Inbox Query Latency:** < 200ms (p95)
+- **Cold Start:** < 2 seconds (acceptable for MVP)
+- **Response Time:** Fast response for all endpoints
+
+### Resource Limits
+
+- **Lambda Payload:** 6MB max (recommend 400KB for events)
+- **DynamoDB Item Size:** 400KB max
+- **API Gateway Payload:** 10MB max
+- **Event Payload:** 400KB max (validated)
+
+### Scalability Considerations
+
+- **Lambda:** Auto-scaling (AWS managed)
+- **DynamoDB:** On-demand billing (no capacity planning)
+- **API Gateway:** Managed scaling
+- **No specific throughput requirements for MVP**
+
+## Implementation Details
+
+### UUID Format
+
+- **Library:** Python's `uuid` module
+- **Function:** `uuid.uuid4()`
+- **Format:** Lowercase UUID string (e.g., "550e8400-e29b-41d4-a716-446655440000")
+- **Usage:** Event IDs, request IDs
+
+### Timestamp Format
+
+- **Format:** ISO 8601 UTC with Z suffix
+- **Pattern:** `YYYY-MM-DDTHH:MM:SS.ffffffZ`
+- **Example:** `2024-01-01T12:00:00.123456Z`
+- **Implementation:** `datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')`
+
+### TTL Calculation
+
+- **Events:** 7 days from creation
+- **Idempotency Keys:** 24 hours from creation
+- **Format:** Unix timestamp (seconds since epoch)
+- **Calculation:** `int(time.time()) + (7 * 24 * 60 * 60)`
+
+### Cursor Encoding
+
+- **Format:** Base64-encoded JSON
+- **Content:** DynamoDB `LastEvaluatedKey`
+- **Encoding:** `base64.b64encode(json.dumps(key).encode()).decode()`
+- **Decoding:** `json.loads(base64.b64decode(cursor).decode())`
+
+### API Key Management
+
+**Phase 1 (Local):**
+- Hardcoded test key: `test-api-key-12345`
+- Environment variable: `AUTH_MODE=local`
+
+**Phase 2+ (AWS):**
+- Stored in DynamoDB `triggers-api-keys` table
+- Environment variable: `AUTH_MODE=aws`
+- Migration path: Support both modes during transition
+
+### Error Handling
+
+**Exception Classes:**
+- `ValidationError` - Invalid request payload
+- `UnauthorizedError` - Missing/invalid API key
+- `NotFoundError` - Resource not found
+- `ConflictError` - Resource conflict (e.g., already acknowledged)
+- `PayloadTooLargeError` - Payload exceeds 400KB
+- `InternalError` - Server error
+
+**Error Response Format:**
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message",
+    "details": {},
+    "request_id": "uuid-v4"
+  }
+}
+```
+
+## Testing Strategy
+
+### Test Types
+
+1. **Unit Tests:** Fast, isolated, high coverage
+2. **Integration Tests:** Components with mocked dependencies
+3. **E2E Tests:** Real server with DynamoDB Local
+4. **Playwright MCP Tests:** HTTP testing via Playwright
+5. **Browser Tests:** UI testing (Phase 6)
+
+### Test Execution
+
+**Single Command:**
+```bash
+./scripts/run_tests.sh
+```
+
+**Coverage Requirements:**
+- Overall: >80% code coverage
+- Critical paths: 100% coverage
+- Error handling: 100% coverage
+
+## Deployment
+
+### Local Deployment (Phase 1)
+
+1. Start DynamoDB Local: `docker-compose up`
+2. Create tables: Automatic on FastAPI startup
+3. Start FastAPI: `uvicorn src.main:app --reload`
+
+### AWS Deployment (Phase 2+)
+
+1. Build: `sam build`
+2. Deploy: `sam deploy --guided`
+3. Test: Use deployed API Gateway URL
+
+## Known Technical Considerations
+
+### DynamoDB Limitations
+
+- **Total Count:** Not efficiently supported (removed from pagination)
+- **Filtering:** FilterExpression applied after query (may affect pagination)
+- **GSI Design:** Status-based GSI sufficient for MVP scale
+
+### Lambda Considerations
+
+- **Cold Starts:** Acceptable for MVP (< 2 seconds)
+- **Memory:** Default configuration sufficient
+- **Timeout:** Default timeout sufficient
+
+### API Gateway Considerations
+
+- **CORS:** Configured in Phase 2
+- **Throttling:** Not implemented in MVP (can use API Gateway throttling)
+- **Custom Domain:** Not required for MVP
+
+---
+
+**Document Status:** Active  
+**Last Updated:** Initial creation
+
