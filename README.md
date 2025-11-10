@@ -78,6 +78,83 @@ Delete an event.
 
 ## Testing
 
+Phase 3 includes comprehensive automated testing with >80% code coverage.
+
+### Running Tests
+
+**Run all tests (single command):**
+```bash
+./scripts/run_tests.sh
+# Or using Python:
+python scripts/run_tests.py
+```
+
+**Run specific test suites:**
+```bash
+# Unit tests only
+pytest tests/unit/ -v
+
+# Integration tests only
+pytest tests/integration/ -v
+
+# E2E tests only (requires DynamoDB Local)
+pytest tests/e2e/ -v
+
+# Playwright MCP tests only
+pytest tests/playwright/ -v
+```
+
+**Run with coverage:**
+```bash
+pytest --cov=src --cov-report=html --cov-report=term-missing
+```
+
+**View coverage report:**
+Open `htmlcov/index.html` in your browser after running coverage.
+
+### Test Structure
+
+```
+tests/
+├── unit/              # Unit tests (fast, isolated)
+│   ├── test_events.py
+│   ├── test_inbox.py
+│   ├── test_auth.py
+│   ├── test_database.py
+│   └── test_models.py
+├── integration/       # Integration tests (with mocks)
+│   └── test_integration.py
+├── e2e/              # End-to-end tests (real server)
+│   ├── test_e2e_events.py
+│   └── test_e2e_inbox.py
+├── playwright/       # Playwright MCP tests
+│   └── test_api_playwright.py
+└── utils/            # Test utilities and helpers
+    ├── fixtures.py
+    └── test_helpers.py
+```
+
+### Test Requirements
+
+- **Unit tests:** No external dependencies (use mocks)
+- **Integration tests:** Use moto for AWS service mocking
+- **E2E tests:** Require DynamoDB Local running (`docker-compose up -d`)
+- **Playwright MCP tests:** Require MCP server configuration (optional)
+
+### Test Fixtures
+
+Common fixtures available in `tests/conftest.py`:
+- `client`: FastAPI test client
+- `api_key`: Test API key
+- `sample_event`: Sample event data
+- `auth_headers`: Headers with API key
+
+### Coverage Requirements
+
+- **Overall coverage:** >80%
+- **Critical paths:** 100% coverage (endpoints, auth, database)
+- **Error handling:** 100% coverage
+
 ### Example cURL Commands
 
 **Health Check:**

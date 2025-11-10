@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from src.models import EventCreate, EventResponse, AckResponse, DeleteResponse
 from src.database import create_event, acknowledge_event, delete_event, get_event
 from src.auth import get_api_key
-from src.exceptions import NotFoundError, ConflictError, PayloadTooLargeError
+from src.exceptions import NotFoundError, ConflictError, PayloadTooLargeError, InternalError
 from src.utils import validate_payload_size
 from botocore.exceptions import ClientError
 
@@ -38,7 +38,7 @@ async def create_event_endpoint(
             metadata=event_data.metadata
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create event: {e}")
+        raise InternalError(f"Failed to create event: {e}")
     
     request_id = request.state.request_id
     

@@ -17,10 +17,20 @@ FastAPI App → DynamoDB Local
 
 ### Phase 2+ (AWS Production)
 ```
-API Gateway → Lambda → DynamoDB
-                ↓
-            CloudWatch
+API Gateway (REST API)
+    ↓
+Lambda Function (FastAPI via Mangum)
+    ↓
+DynamoDB (Events + API Keys tables)
+    ↓
+CloudWatch (Logs & Metrics)
 ```
+
+**Deployment Architecture:**
+- API Gateway: Regional REST API with `/v1/{proxy+}` catch-all route
+- Lambda: Python 3.11 runtime, handler: `src.main.handler`
+- DynamoDB: On-demand billing, TTL enabled, GSI for inbox queries
+- IAM: Lambda execution role with DynamoDB and CloudWatch permissions
 
 ## Component Architecture
 
@@ -199,11 +209,12 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 - **Projection:** All attributes
 - **Purpose:** Query pending events efficiently
 
-### API Keys Table (`triggers-api-keys`)
+### API Keys Table (`triggers-api-keys-{stage}`)
 
 - **Partition Key:** `api_key` (String)
 - **Attributes:** source, created_at, is_active
 - **Billing Mode:** On-demand
+- **Stage-based naming:** Table name includes deployment stage (e.g., `triggers-api-keys-prod`)
 
 ### Idempotency Table (`triggers-api-idempotency`) - Phase 4
 
@@ -261,7 +272,10 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 ### Authentication
 - API key in `X-API-Key` header
 - Validated on all endpoints (except health check)
-- Stored in DynamoDB (Phase 2+)
+- Dual-mode support:
+  - **Local mode (`AUTH_MODE=local`):** Hardcoded test key `test-api-key-12345`
+  - **AWS mode (`AUTH_MODE=aws`):** Validated against DynamoDB `triggers-api-keys-{stage}` table
+- API keys stored in DynamoDB with `is_active` flag for revocation
 
 ### Data Protection
 - TLS 1.2+ for data in transit

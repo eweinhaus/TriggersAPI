@@ -88,8 +88,8 @@ def main():
     
     args = parser.parse_args()
     
-    # Confirmation prompt for production
-    if args.stage == 'prod':
+    # Confirmation prompt for production (skip if running non-interactively)
+    if args.stage == 'prod' and sys.stdin.isatty():
         response = input(f"Are you sure you want to create an API key in PRODUCTION ({args.stage})? (yes/no): ")
         if response.lower() != 'yes':
             print("Cancelled.")

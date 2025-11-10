@@ -5,3 +5,13 @@ boto3>=1.28.0
 python-dotenv>=1.0.0
 mangum>=0.17.0
 
+# Testing dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+moto>=4.2.0
+httpx>=0.25.0
+faker>=19.0.0
+pytest-xdist>=3.0.0
+pytest-timeout>=2.1.0
+

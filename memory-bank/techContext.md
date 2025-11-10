@@ -21,8 +21,10 @@
 - **boto3 1.28.0+** - AWS service client
 
 **Deployment:**
-- **AWS SAM** - Infrastructure as code
-- **SAM CLI** - Local testing and deployment
+- **AWS SAM** - Infrastructure as code (template.yaml created)
+- **AWS CLI** - Direct deployment (primary method due to SAM CLI issues)
+- **Docker** - Building Lambda-compatible packages (x86_64 binaries)
+- **Mangum 0.17.0+** - ASGI adapter for FastAPI on Lambda
 
 ### Frontend (Phase 6)
 
@@ -101,8 +103,9 @@ triggers-api/
 │   └── conftest.py          # pytest fixtures
 ├── scripts/
 │   ├── create_tables.py     # Initialize DynamoDB tables
-│   ├── seed_api_keys.py     # Create test API keys
+│   ├── seed_api_keys.py     # Create test API keys (supports local/AWS)
 │   ├── local_setup.sh       # Local development setup
+│   ├── deploy_aws.sh        # AWS deployment script (AWS CLI)
 │   └── run_tests.sh         # Test automation script
 ├── frontend/                # Phase 6
 │   ├── src/
@@ -125,6 +128,7 @@ uvicorn[standard]>=0.24.0
 pydantic>=2.0.0
 boto3>=1.28.0
 python-dotenv>=1.0.0
+mangum>=0.17.0
 ```
 
 ### Development Dependencies
@@ -205,9 +209,10 @@ axios>=1.6.0
 - Environment variable: `AUTH_MODE=local`
 
 **Phase 2+ (AWS):**
-- Stored in DynamoDB `triggers-api-keys` table
+- Stored in DynamoDB `triggers-api-keys-{stage}` table
 - Environment variable: `AUTH_MODE=aws`
-- Migration path: Support both modes during transition
+- Dual-mode support: Application supports both local and AWS modes via `AUTH_MODE` env var
+- API key seeding: `python scripts/seed_api_keys.py --api-key <key> --stage prod --region us-east-1`
 
 ### Error Handling
 
@@ -263,9 +268,17 @@ axios>=1.6.0
 
 ### AWS Deployment (Phase 2+)
 
-1. Build: `sam build`
+**Method 1: AWS CLI (Current)**
+1. Build deployment package: `docker run --rm --platform linux/amd64 -v "$(pwd):/var/task" -w /var/task public.ecr.aws/sam/build-python3.11:latest /bin/bash -c "mkdir -p .deploy && pip install -r requirements.txt -t .deploy && cp -r src .deploy/ && cd .deploy && zip -r ../lambda-deployment.zip . -q"`
+2. Deploy: `./scripts/deploy_aws.sh`
+3. Test: Use deployed API Gateway URL
+
+**Method 2: AWS SAM (Alternative)**
+1. Build: `sam build` (has handler validation issues with SAM CLI 1.146.0)
 2. Deploy: `sam deploy --guided`
 3. Test: Use deployed API Gateway URL
+
+**Note:** Currently using AWS CLI method due to SAM CLI compatibility issues with Python 3.14/Pydantic.
 
 ## Known Technical Considerations
 
