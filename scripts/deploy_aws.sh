@@ -154,7 +154,7 @@ echo ""
 echo "3️⃣ Creating Lambda Function..."
 
 if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" &>/dev/null; then
-    echo "   ✓ Function already exists, updating code..."
+    echo "   ✓ Function already exists, updating code and configuration..."
     aws lambda update-function-code \
         --function-name "$FUNCTION_NAME" \
         --zip-file fileb://lambda-deployment.zip \
@@ -164,6 +164,24 @@ if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" &
     echo "   ⏳ Waiting for function update..."
     aws lambda wait function-updated --function-name "$FUNCTION_NAME" --region "$REGION"
     echo "   ✓ Function code updated"
+    
+    # Update environment variables
+    echo "   Updating environment variables..."
+    aws lambda update-function-configuration \
+        --function-name "$FUNCTION_NAME" \
+        --environment "Variables={
+            STAGE=$STAGE,
+            DYNAMODB_TABLE_EVENTS=$EVENTS_TABLE,
+            DYNAMODB_TABLE_KEYS=$API_KEYS_TABLE,
+            AUTH_MODE=aws,
+            LOG_LEVEL=INFO
+        }" \
+        --region "$REGION" \
+        --output text > /dev/null
+    
+    echo "   ⏳ Waiting for configuration update..."
+    aws lambda wait function-updated --function-name "$FUNCTION_NAME" --region "$REGION"
+    echo "   ✓ Environment variables updated"
 else
     echo "   Creating Lambda function: $FUNCTION_NAME"
     aws lambda create-function \

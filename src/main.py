@@ -94,10 +94,12 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # Add CORS middleware
+# Note: allow_credentials=True cannot be used with allow_origins=["*"]
+# For MVP, we allow all origins without credentials
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # For MVP, allow all origins
-    allow_credentials=True,
+    allow_credentials=False,  # Must be False when using allow_origins=["*"]
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
     max_age=3600,
@@ -256,6 +258,21 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(health.router, prefix="/v1", tags=["health"])
 app.include_router(events.router, prefix="/v1", tags=["events"])
 app.include_router(inbox.router, prefix="/v1", tags=["inbox"])
+
+# Explicit OPTIONS handler for CORS preflight (backup to CORS middleware)
+@app.options("/{full_path:path}")
+async def options_handler(request: Request):
+    """Handle OPTIONS requests for CORS preflight."""
+    return JSONResponse(
+        content={},
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 
 # Startup event

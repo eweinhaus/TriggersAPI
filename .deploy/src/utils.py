@@ -79,3 +79,74 @@ def validate_payload_size(payload: dict, max_size: int = 400 * 1024) -> None:
             f"Payload size ({payload_size} bytes) exceeds maximum ({max_size} bytes)"
         )
 
+
+def format_validation_error(field: str, issue: str, value: Any = None) -> dict:
+    """
+    Format validation error with context and suggestion.
+    
+    Args:
+        field: Field name that failed validation
+        issue: Description of the validation issue
+        value: Optional field value that failed
+        
+    Returns:
+        Details dictionary for error response
+    """
+    details = {
+        "field": field,
+        "issue": issue
+    }
+    
+    if value is not None:
+        details["value"] = value
+    
+    # Add suggestion based on issue type
+    if "required" in issue.lower():
+        details["suggestion"] = f"Include '{field}' in your request body"
+    elif "empty" in issue.lower():
+        details["suggestion"] = f"Provide a non-empty value for '{field}'"
+    elif "length" in issue.lower() or "size" in issue.lower():
+        details["suggestion"] = f"Ensure '{field}' meets the length/size requirements"
+    else:
+        details["suggestion"] = f"Check that '{field}' is valid"
+    
+    return details
+
+
+def format_not_found_error(resource_type: str, resource_id: str) -> dict:
+    """
+    Format not found error with context and suggestion.
+    
+    Args:
+        resource_type: Type of resource (e.g., "Event")
+        resource_id: ID of the resource that wasn't found
+        
+    Returns:
+        Details dictionary for error response
+    """
+    return {
+        "resource_type": resource_type,
+        resource_type.lower() + "_id": resource_id,
+        "suggestion": f"Verify the {resource_type.lower()} ID is correct and the {resource_type.lower()} exists"
+    }
+
+
+def format_conflict_error(resource_type: str, resource_id: str, context: dict) -> dict:
+    """
+    Format conflict error with context and suggestion.
+    
+    Args:
+        resource_type: Type of resource (e.g., "Event")
+        resource_id: ID of the resource in conflict
+        context: Additional context (e.g., current_status, acknowledged_at)
+        
+    Returns:
+        Details dictionary for error response
+    """
+    details = {
+        resource_type.lower() + "_id": resource_id,
+        **context,
+        "suggestion": f"This {resource_type.lower()} has already been processed"
+    }
+    return details
+

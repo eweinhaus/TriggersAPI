@@ -72,6 +72,19 @@ class EventResponse(BaseModel):
     request_id: str
 
 
+class EventDetailResponse(BaseModel):
+    """Response model for event details (GET /events/{event_id})."""
+    event_id: str
+    created_at: str
+    source: str
+    event_type: str
+    payload: dict
+    status: str
+    metadata: Optional[dict] = None
+    acknowledged_at: Optional[str] = None
+    request_id: str
+
+
 class InboxResponse(BaseModel):
     """Response model for inbox query."""
     events: list[dict]
