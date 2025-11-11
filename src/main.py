@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from pydantic import ValidationError as PydanticValidationError
 from mangum import Mangum
 
@@ -23,12 +24,74 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# OpenAPI tags metadata
+tags_metadata = [
+    {
+        "name": "health",
+        "description": "Health check endpoints. No authentication required. Use these endpoints to verify API availability and status.",
+    },
+    {
+        "name": "events",
+        "description": "Event management endpoints. Create, retrieve, acknowledge, and delete events. All endpoints require API key authentication.",
+    },
+    {
+        "name": "inbox",
+        "description": "Inbox endpoints. Retrieve pending events with pagination and filtering. Requires API key authentication.",
+    },
+]
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Zapier Triggers API",
-    description="Unified event ingestion system for Zapier",
-    version="1.0.0"
+    description="""
+    A unified, real-time event ingestion system that enables external systems to send events into Zapier via a standardized RESTful interface.
+    
+    ## Features
+    
+    - **Event Ingestion**: Send events with flexible payloads
+    - **Idempotency**: Prevent duplicate events using idempotency keys
+    - **Event Management**: Retrieve, acknowledge, and delete events
+    - **Inbox System**: Query pending events with pagination and filtering
+    - **Request Tracking**: All requests include request IDs for correlation
+    
+    ## Authentication
+    
+    Most endpoints require API key authentication via the `X-API-Key` header.
+    Get your API key from your account settings.
+    
+    ## Rate Limits
+    
+    API requests are subject to rate limiting. See error responses for rate limit information.
+    """,
+    version="1.0.0",
+    openapi_tags=tags_metadata,
 )
+
+
+# Custom OpenAPI schema with security scheme
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+        tags=app.openapi_tags,
+    )
+    # Add security scheme
+    openapi_schema["components"]["securitySchemes"] = {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-API-Key",
+            "description": "API key for authentication. Include this header in all authenticated requests. Get your API key from your account settings."
+        }
+    }
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 # Add CORS middleware
 app.add_middleware(

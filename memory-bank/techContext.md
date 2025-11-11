@@ -96,7 +96,7 @@ triggers-api/
 │       ├── inbox.py         # Inbox endpoints
 │       └── health.py         # Health check
 ├── tests/
-│   ├── unit/                # Unit tests (74 tests, 84% coverage)
+│   ├── unit/                # Unit tests (117 tests, 87% coverage)
 │   │   ├── test_events.py
 │   │   ├── test_inbox.py
 │   │   ├── test_auth.py
@@ -280,10 +280,10 @@ pytest tests/playwright/ -v        # Playwright MCP tests (requires running serv
 ```
 
 **Coverage Requirements:**
-- Overall: >80% code coverage ✅ (Currently: 84%)
+- Overall: >80% code coverage ✅ (Currently: 87%)
 - Critical paths: 100% coverage (endpoints, auth, database)
 - Error handling: 100% coverage
-- Current Status: 74 unit tests passing, 84% coverage achieved
+- Current Status: 117 unit tests passing, 87% coverage achieved
 
 ## Deployment
 
@@ -330,5 +330,5 @@ pytest tests/playwright/ -v        # Playwright MCP tests (requires running serv
 ---
 
 **Document Status:** Active  
-**Last Updated:** Initial creation
+**Last Updated:** 2025-11-10 (Phase 4 completion)
 

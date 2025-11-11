@@ -1,0 +1,23 @@
+{
+  "name": "triggers-api-client",
+  "version": "1.0.0",
+  "description": "JavaScript client for Zapier Triggers API",
+  "main": "src/client.js",
+  "scripts": {
+    "example:basic": "node examples/basic-usage.js",
+    "example:flow": "node examples/event-flow.js",
+    "example:errors": "node examples/error-handling.js"
+  },
+  "keywords": [
+    "zapier",
+    "triggers",
+    "api",
+    "client"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
+

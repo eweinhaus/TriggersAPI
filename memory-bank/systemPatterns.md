@@ -47,7 +47,7 @@ CloudWatch (Logs & Metrics)
    - Events table (primary storage)
    - Inbox GSI (status-based queries)
    - API Keys table (authentication)
-   - Idempotency table (Phase 4)
+   - Idempotency table (Phase 4 - implemented)
 
 3. **Authentication Layer**
    - API key validation
@@ -118,11 +118,37 @@ async def validate_api_key(request: Request):
 - DynamoDB conditional updates prevent race conditions
 - Used for acknowledgment to prevent double-processing
 - Returns 409 Conflict if condition fails
+- Also used for idempotency key storage (Phase 4)
 
 **Code Pattern:**
 ```python
+# Acknowledgment
 UpdateExpression = "SET #status = :status, acknowledged_at = :ack_at"
 ConditionExpression = "#status = :pending"
+
+# Idempotency key storage
+ConditionExpression = "attribute_not_exists(idempotency_key)"
+```
+
+### 9. Idempotency Key Pattern (Phase 4)
+
+**Implementation:**
+- Separate DynamoDB table for idempotency keys
+- Check idempotency key before event creation
+- Return existing event if key found
+- Store idempotency key mapping with 24-hour TTL
+- Conditional writes prevent race conditions
+
+**Code Pattern:**
+```python
+# Check for existing event
+existing_event_id = check_idempotency_key(idempotency_key)
+if existing_event_id:
+    return get_event(existing_event_id)
+
+# Create new event and store idempotency key
+event = create_event(...)
+store_idempotency_key(idempotency_key, event['event_id'])
 ```
 
 ### 5. Pagination Pattern (Cursor-Based)
@@ -141,15 +167,17 @@ cursor = base64.b64encode(json.dumps(last_evaluated_key).encode()).decode()
 last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 ```
 
-### 6. Error Response Standardization
+### 6. Error Response Standardization with Enhanced Messages
 
 **Implementation:**
 - Consistent error format across all endpoints
 - Error codes map to HTTP status codes
 - Request ID always included
-- Structured error details
+- Structured error details with actionable suggestions
 - Exception handlers registered in FastAPI app
 - Pydantic validation errors formatted consistently
+- Error message utility functions (format_validation_error, format_not_found_error, format_conflict_error)
+- Error details include field names, issues, and suggestions
 
 **Error Format:**
 ```json
@@ -229,12 +257,13 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 - **Billing Mode:** On-demand
 - **Stage-based naming:** Table name includes deployment stage (e.g., `triggers-api-keys-prod`)
 
-### Idempotency Table (`triggers-api-idempotency`) - Phase 4
+### Idempotency Table (`triggers-api-idempotency`) - Phase 4 ✅
 
 - **Partition Key:** `idempotency_key` (String)
-- **Attributes:** event_id, created_at
+- **Attributes:** event_id (String), created_at (ISO 8601)
 - **TTL Attribute:** `ttl` (Number, Unix timestamp, 24 hours)
 - **Billing Mode:** On-demand
+- **Status:** Implemented and functional
 
 ## Component Relationships
 
@@ -323,7 +352,7 @@ last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 **Test Structure:**
 ```
 tests/
-├── unit/              # Fast, isolated tests (74 tests)
+├── unit/              # Fast, isolated tests (117 tests, 87% coverage)
 ├── integration/       # Full workflow tests
 ├── e2e/              # Real server tests
 ├── playwright/       # HTTP-based API tests
@@ -342,5 +371,5 @@ tests/
 ---
 
 **Document Status:** Active  
-**Last Updated:** 2025-11-10 (Phase 3 completion)
+**Last Updated:** 2025-11-10 (Phase 4 completion)
 

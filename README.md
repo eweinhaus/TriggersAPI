@@ -4,7 +4,72 @@ A unified, real-time event ingestion system that enables external systems to sen
 
 ## Project Status
 
-**Current Phase:** Phase 4 - Developer Experience (P1) ✅ Completed
+**Current Phase:** Phase 5 - Documentation & Example Clients ✅ Completed
+
+## Quick Start
+
+Get started with the API in 5 minutes:
+
+### Option 1: Using Python Client
+
+```bash
+# Install Python client
+cd examples/python
+pip install -r requirements.txt
+
+# Run example
+python examples/basic_usage.py
+```
+
+See [Python Client Documentation](examples/python/README.md) for details.
+
+### Option 2: Using JavaScript Client
+
+```bash
+# Install JavaScript client
+cd examples/javascript
+npm install
+
+# Run example
+npm run example:basic
+```
+
+See [JavaScript Client Documentation](examples/javascript/README.md) for details.
+
+### Option 3: Using cURL
+
+```bash
+# Health check (no auth required)
+curl http://localhost:8080/v1/health
+
+# Create an event
+curl -X POST http://localhost:8080/v1/events \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: test-api-key-12345" \
+  -H "X-Request-ID: test-request-123" \
+  -d '{
+    "source": "my-app",
+    "event_type": "user.created",
+    "payload": {"user_id": "123", "name": "John"}
+  }'
+```
+
+See [cURL Examples](docs/CURL_EXAMPLES.md) for comprehensive examples.
+
+### Interactive API Documentation
+
+- **Swagger UI**: Visit `http://localhost:8080/docs` for interactive API testing
+- **ReDoc**: Visit `http://localhost:8080/redoc` for readable API documentation
+
+## Documentation
+
+- [API Reference](docs/API.md) - Complete API documentation
+- [Quick Start Guide](docs/QUICKSTART.md) - Step-by-step getting started
+- [Usage Examples](docs/EXAMPLES.md) - Common use cases and patterns
+- [Error Handling Guide](docs/ERRORS.md) - Error codes and handling
+- [cURL Examples](docs/CURL_EXAMPLES.md) - Complete cURL command reference
+- [Python Client](examples/python/README.md) - Python client documentation
+- [JavaScript Client](examples/javascript/README.md) - JavaScript client documentation
 
 ## Local Development Setup
 
@@ -62,6 +127,12 @@ See `.env.example` for all available environment variables.
 - `AUTH_MODE`: `local` (uses hardcoded test key)
 
 ## API Endpoints
+
+For complete API documentation, see:
+- [Interactive Swagger UI](http://localhost:8080/docs) - Test endpoints interactively
+- [ReDoc Documentation](http://localhost:8080/redoc) - Readable API reference
+- [API Reference](docs/API.md) - Complete API documentation
+- [cURL Examples](docs/CURL_EXAMPLES.md) - Working cURL commands
 
 ### GET /v1/health
 Health check endpoint (no authentication required).
@@ -488,6 +559,56 @@ aws dynamodb describe-table --table-name triggers-api-events-prod
 - **Permission errors:** Verify IAM permissions for SAM CLI
 - **Lambda timeout:** Increase timeout in `template.yaml`
 - **CORS errors:** Verify CORS configuration in SAM template
+
+## Example Clients
+
+We provide example clients in multiple languages to help you get started quickly:
+
+### Python Client
+
+Full-featured Python client with type hints and error handling.
+
+```python
+from triggers_api import TriggersAPIClient
+
+client = TriggersAPIClient(
+    api_key="your-api-key",
+    base_url="http://localhost:8080"
+)
+
+event = client.create_event(
+    source="my-app",
+    event_type="user.created",
+    payload={"user_id": "123"}
+)
+```
+
+📖 [Python Client Documentation](examples/python/README.md)
+
+### JavaScript/Node.js Client
+
+Promise-based JavaScript client for Node.js applications.
+
+```javascript
+const TriggersAPIClient = require('./src/client');
+
+const client = new TriggersAPIClient({
+    apiKey: 'your-api-key',
+    baseUrl: 'http://localhost:8080'
+});
+
+const event = await client.createEvent({
+    source: 'my-app',
+    eventType: 'user.created',
+    payload: { userId: '123' }
+});
+```
+
+📖 [JavaScript Client Documentation](examples/javascript/README.md)
+
+## Contributing
+
+This is an internal project for Zapier. For questions or issues, please contact the development team.
 
 ## License
 
