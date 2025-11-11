@@ -30,10 +30,17 @@ CloudWatch (Logs & Metrics)
 
 **Deployment Architecture:**
 - Frontend: S3 static hosting + CloudFront CDN (Phase 6)
+  - S3 Bucket: `triggers-api-frontend-971422717446`
+  - CloudFront Distribution: `E1392QCULSIX14`
+  - Error handling: S3 error document + CloudFront custom error responses (403/404 → 200 → `/index.html`)
+  - API URL: `https://4g0xk0jne0.execute-api.us-east-1.amazonaws.com/prod/v1` (includes `/v1` prefix)
 - API Gateway: Regional REST API with `/v1/{proxy+}` catch-all route
 - Lambda: Python 3.11 runtime, handler: `src.main.handler`
+  - IAM Permissions: DynamoDB (GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan), CloudWatch Logs
 - DynamoDB: On-demand billing, TTL enabled, GSI for inbox queries
-- IAM: Lambda execution role with DynamoDB and CloudWatch permissions
+  - Events table: `triggers-api-events-prod`
+  - API Keys table: `triggers-api-keys-prod`
+  - Idempotency table: `triggers-api-idempotency-prod` (Phase 4)
 
 ## Component Architecture
 
@@ -168,6 +175,34 @@ cursor = base64.b64encode(json.dumps(last_evaluated_key).encode()).decode()
 
 # Decode
 last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
+```
+
+### 5a. Event Lookup Pattern (Scan with Pagination)
+
+**Implementation:**
+- `get_event()` uses DynamoDB scan operation when `created_at` not provided
+- Paginates through scan results until event found or entire table scanned
+- Uses `ConsistentRead=True` to ensure recently written items are found
+- Acceptable for MVP scale, could be optimized with GSI for production
+
+**Code Pattern:**
+```python
+# Scan with pagination
+scan_kwargs = {
+    'FilterExpression': 'event_id = :event_id',
+    'ExpressionAttributeValues': {':event_id': event_id},
+    'ConsistentRead': True,
+    'Limit': 100
+}
+while True:
+    response = table.scan(**scan_kwargs)
+    items = response.get('Items', [])
+    if items:
+        return items[0]
+    last_evaluated_key = response.get('LastEvaluatedKey')
+    if not last_evaluated_key:
+        return None
+    scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
 ```
 
 ### 6. Error Response Standardization with Enhanced Messages
@@ -374,5 +409,5 @@ tests/
 ---
 
 **Document Status:** Active  
-**Last Updated:** 2025-11-11 (Phase 6 completion - Frontend Dashboard)
+**Last Updated:** 2025-11-11 (Production deployment fixes - Architecture updated)
 
