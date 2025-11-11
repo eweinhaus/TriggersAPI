@@ -13,15 +13,16 @@ const Layout = ({ children }) => {
           component="main"
           sx={{
             flexGrow: 1,
-            p: 3,
+            p: { xs: 2, sm: 3 },
             backgroundColor: 'background.default',
             minHeight: 'calc(100vh - 64px)',
             width: '100%',
             overflow: 'auto',
-            maxWidth: 'calc(100vw - 240px)', // Account for sidebar width
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          {children}
+          <Box sx={{ width: '100%', maxWidth: '100%' }}>{children}</Box>
         </Box>
       </Box>
     </Box>

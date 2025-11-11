@@ -6,10 +6,10 @@
 set -e
 
 # Configuration
-BUCKET_NAME="${FRONTEND_S3_BUCKET:-triggers-api-frontend}"
-CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
+BUCKET_NAME="${FRONTEND_S3_BUCKET:-triggers-api-frontend-971422717446}"
+CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-E1392QCULSIX14}"
 REGION="${AWS_REGION:-us-east-1}"
-API_URL="${REACT_APP_API_URL:-https://4g0xk0jne0.execute-api.us-east-1.amazonaws.com/prod}"
+API_URL="${VITE_API_URL:-https://4g0xk0jne0.execute-api.us-east-1.amazonaws.com/prod}"
 
 echo "🚀 Starting frontend deployment..."
 echo "   Bucket: $BUCKET_NAME"
@@ -25,7 +25,7 @@ fi
 # Build the frontend
 echo ""
 echo "📦 Building frontend..."
-export REACT_APP_API_URL="$API_URL"
+export VITE_API_URL="$API_URL"
 npm run build
 
 if [ ! -d "dist" ]; then

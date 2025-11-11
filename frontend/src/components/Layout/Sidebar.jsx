@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  Box,
   Drawer,
   List,
   ListItem,
@@ -37,40 +38,47 @@ const Sidebar = () => {
   };
 
   const drawerContent = (
-    <List>
-      {menuItems.map((item) => {
-        const isActive = location.pathname === item.path;
-        return (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={isActive}
-              onClick={() => handleNavigation(item.path)}
-              sx={{
-                '&.Mui-selected': {
-                  backgroundColor: 'primary.main',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                  '& .MuiListItemIcon-root': {
-                    color: 'white',
-                  },
-                },
-              }}
-            >
-              <ListItemIcon
+    <Box sx={{ pt: 2 }}>
+      <List>
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <ListItem key={item.text} disablePadding sx={{ px: 1 }}>
+              <ListItemButton
+                selected={isActive}
+                onClick={() => handleNavigation(item.path)}
                 sx={{
-                  color: isActive ? 'white' : 'inherit',
+                  borderRadius: 1,
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'white',
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
                 }}
               >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        );
-      })}
-    </List>
+                <ListItemIcon
+                  sx={{
+                    color: isActive ? 'white' : 'inherit',
+                    minWidth: 40,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
   );
 
   if (isMobile) {
@@ -103,6 +111,10 @@ const Sidebar = () => {
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
+          position: 'relative',
+          height: '100%',
+          borderRight: '1px solid',
+          borderColor: 'divider',
         },
       }}
     >

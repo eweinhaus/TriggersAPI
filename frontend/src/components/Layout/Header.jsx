@@ -73,12 +73,12 @@ const Header = () => {
   };
 
   return (
-    <AppBar position="static">
-      <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 3 }}>
-          Zapier Triggers API
+    <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <Toolbar sx={{ width: '100%', px: { xs: 2, sm: 3 } }}>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 3, fontWeight: 600 }}>
+          Triggers API
         </Typography>
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
           <TextField
             label="API Key"
             type="password"
@@ -86,7 +86,8 @@ const Header = () => {
             onChange={handleApiKeyChange}
             size="small"
             sx={{
-              minWidth: 300,
+              minWidth: { xs: 200, sm: 300 },
+              maxWidth: 400,
               '& .MuiOutlinedInput-root': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 '&:hover': {
