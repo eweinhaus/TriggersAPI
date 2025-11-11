@@ -94,7 +94,8 @@ class TestExceptionHandlers:
                 response = asyncio.run(api_exception_handler(mock_request, exc))
         
         assert response.status_code == 400
-        mock_logger.exception.assert_called_once()
+        # With structured logging, we use logger.error with extra fields
+        mock_logger.error.assert_called_once()
     
     def test_http_exception_handler(self, mock_request):
         """Test HTTP exception handler."""

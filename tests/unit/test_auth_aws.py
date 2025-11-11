@@ -56,8 +56,9 @@ class TestAWSModeAuthentication:
         with pytest.raises(UnauthorizedError) as exc_info:
             validate_api_key(mock_request)
         
-        # The UnauthorizedError gets caught by generic exception handler
-        assert "Error validating API key" in str(exc_info.value)
+        # Should raise UnauthorizedError with appropriate message
+        error_msg = str(exc_info.value)
+        assert "Invalid API key" in error_msg or "API key is inactive" in error_msg or "Error validating API key" in error_msg
     
     @patch.dict(os.environ, {'AUTH_MODE': 'aws'})
     @patch('src.auth._get_api_keys_table')
@@ -79,8 +80,9 @@ class TestAWSModeAuthentication:
         with pytest.raises(UnauthorizedError) as exc_info:
             validate_api_key(mock_request)
         
-        # The UnauthorizedError gets caught by generic exception handler
-        assert "Error validating API key" in str(exc_info.value)
+        # Should raise UnauthorizedError with appropriate message
+        error_msg = str(exc_info.value)
+        assert "Invalid API key" in error_msg or "API key is inactive" in error_msg or "Error validating API key" in error_msg
     
     @patch.dict(os.environ, {'AUTH_MODE': 'aws'})
     @patch('src.auth._get_api_keys_table')

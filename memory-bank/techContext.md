@@ -13,7 +13,7 @@
 **AWS Services:**
 - **AWS Lambda** - Serverless compute (Python runtime)
 - **API Gateway** - REST API interface
-- **DynamoDB** - NoSQL database
+- **DynamoDB** - NoSQL database (Events, API Keys, Idempotency, Rate Limits tables)
 - **CloudWatch** - Logging and metrics
 - **S3 + CloudFront** - Frontend hosting (Phase 6)
 
@@ -47,6 +47,7 @@
 - **httpx** - HTTP client for testing
 - **Playwright MCP** - Browser automation (Phase 3, 6)
 - **Cursor Browser Extension** - Browser testing (Phase 6)
+- **k6** - Load testing framework (Phase 7)
 
 ## Development Setup
 
@@ -96,6 +97,10 @@ triggers-api/
 │   ├── database.py          # DynamoDB client wrapper
 │   ├── auth.py              # API key validation
 │   ├── exceptions.py        # Custom exceptions
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── logging.py      # Structured JSON logging (Phase 7)
+│   │   └── metrics.py       # CloudWatch metrics (Phase 7)
 │   └── endpoints/
 │       ├── __init__.py
 │       ├── events.py        # Event endpoints
@@ -124,7 +129,12 @@ triggers-api/
 │   ├── local_setup.sh       # Local development setup
 │   ├── deploy_aws.sh        # AWS deployment script (AWS CLI)
 │   ├── run_tests.sh         # Test automation script (shell)
-│   └── run_tests.py         # Test automation script (Python)
+│   ├── run_tests.py         # Test automation script (Python)
+│   ├── migrate_add_event_id_gsi.py  # GSI migration script (Phase 7)
+│   ├── setup_cloudwatch_dashboard.sh # CloudWatch dashboard setup (Phase 7)
+│   ├── setup_cloudwatch_alarms.sh    # CloudWatch alarms setup (Phase 7)
+│   ├── run_load_tests.sh    # Load test runner (Phase 7)
+│   └── cloudwatch_dashboard.json    # Dashboard configuration (Phase 7)
 ├── frontend/                # Phase 6
 │   ├── src/
 │   ├── tests/
@@ -240,10 +250,11 @@ axios>=1.6.0
 **Exception Classes:**
 - `ValidationError` - Invalid request payload (400)
 - `UnauthorizedError` - Missing/invalid API key (401)
+- `ForbiddenError` - IP address not allowed (403) (Phase 8)
 - `NotFoundError` - Resource not found (404)
 - `ConflictError` - Resource conflict (e.g., already acknowledged) (409)
 - `PayloadTooLargeError` - Payload exceeds 400KB (413)
-- `RateLimitExceededError` - Rate limit exceeded (429)
+- `RateLimitExceededError` - Rate limit exceeded (429) (Phase 8)
 - `InternalError` - Server error (500)
 
 **Error Response Format:**
@@ -267,6 +278,7 @@ axios>=1.6.0
 3. **E2E Tests:** Real server with DynamoDB Local
 4. **Playwright MCP Tests:** HTTP testing via Playwright
 5. **Browser Tests:** UI testing (Phase 6)
+6. **Load Tests:** Performance testing with k6 (Phase 7)
 
 ### Test Execution
 
@@ -286,10 +298,10 @@ pytest tests/playwright/ -v        # Playwright MCP tests (requires running serv
 ```
 
 **Coverage Requirements:**
-- Overall: >80% code coverage ✅ (Currently: 87%)
+- Overall: >80% code coverage ✅ (Currently: 47% with new Phase 8 code, needs more tests)
 - Critical paths: 100% coverage (endpoints, auth, database)
 - Error handling: 100% coverage
-- Current Status: 117 unit tests passing, 87% coverage achieved
+- Current Status: 130+ unit tests passing, Phase 8 features tested
 
 ## Deployment
 
@@ -335,6 +347,33 @@ pytest tests/playwright/ -v        # Playwright MCP tests (requires running serv
 
 ---
 
+## Phase 8 Enhancements
+
+### Rate Limiting
+- **Algorithm:** Token bucket with 60-second windows
+- **Storage:** DynamoDB table `triggers-api-rate-limits-{stage}`
+- **Configuration:** Per-API-key (default: 1000 requests/min)
+- **Headers:** `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+- **Error:** 429 with `Retry-After` header
+
+### Bulk Operations
+- **Endpoints:** `POST /v1/events/bulk`, `POST /v1/events/bulk/ack`, `DELETE /v1/events/bulk`
+- **Batch Size:** Max 25 items per request (DynamoDB limit)
+- **Features:** Partial success handling, idempotency support, detailed error reporting
+
+### Advanced Filtering
+- **Parameters:** `created_after`, `created_before`, `priority`, `metadata_key`, `metadata_value`
+- **Implementation:** Dynamic FilterExpression building for DynamoDB queries
+- **Performance:** Applied to inbox queries with optimized expressions
+
+### IP Allowlisting
+- **Support:** Exact IP matches and CIDR notation (IPv4 and IPv6)
+- **Headers:** Extracts from `X-Forwarded-For`, `X-Real-IP`, or `request.client.host`
+- **Configuration:** Per-API-key (empty list = allow all, backward compatible)
+- **Error:** 403 Forbidden for blocked IPs
+
+---
+
 **Document Status:** Active  
-**Last Updated:** 2025-11-11 (Phase 6 completion - Frontend Dashboard)
+**Last Updated:** 2025-11-11 (Phase 8 completion - API Enhancements & Developer Experience)
 

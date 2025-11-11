@@ -8,6 +8,7 @@ import EventForm from './components/EventForm/EventForm';
 import InboxList from './components/Inbox/InboxList';
 import EventDetails from './components/EventDetails/EventDetails';
 import Statistics from './components/Statistics/Statistics';
+import WebhookList from './components/Webhooks/WebhookList';
 import ErrorBoundary from './components/ErrorBoundary';
 import { NotificationProvider } from './contexts/NotificationContext';
 import theme from './theme';
@@ -35,6 +36,7 @@ function App() {
                   <Route path="/" element={<Navigate to="/inbox" replace />} />
                   <Route path="/send-event" element={<EventForm />} />
                   <Route path="/inbox" element={<InboxList />} />
+                  <Route path="/webhooks" element={<WebhookList />} />
                   <Route path="/events/:eventId" element={<EventDetails />} />
                   <Route path="/statistics" element={<Statistics />} />
                 </Routes>

@@ -1,0 +1,111 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["TriggersAPI/Production", "ApiLatency", {"stat": "p50", "label": "p50"}],
+          [".", ".", {"stat": "p95", "label": "p95"}],
+          [".", ".", {"stat": "p99", "label": "p99"}]
+        ],
+        "period": 300,
+        "stat": "Average",
+        "region": "us-east-1",
+        "title": "API Latency (p50, p95, p99)",
+        "yAxis": {
+          "left": {
+            "label": "Milliseconds"
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["TriggersAPI/Production", "ApiLatency", {"stat": "p95", "label": "p95 Latency"}]
+        ],
+        "period": 300,
+        "stat": "Average",
+        "region": "us-east-1",
+        "title": "API Latency p95 by Endpoint",
+        "yAxis": {
+          "left": {
+            "label": "Milliseconds"
+          }
+        },
+        "view": "timeSeries"
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["TriggersAPI/Production", "ApiRequestCount", {"stat": "Sum", "label": "Total Requests"}]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "title": "Request Count",
+        "yAxis": {
+          "left": {
+            "label": "Count"
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["TriggersAPI/Production", "ApiRequestCount", {"dimensions": {"Status": "success"}, "stat": "Sum", "label": "Success"}],
+          ["...", {"dimensions": {"Status": "error"}, "stat": "Sum", "label": "Error"}]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "title": "Success vs Error Rate",
+        "yAxis": {
+          "left": {
+            "label": "Count"
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["TriggersAPI/Production", "ApiErrorRate", {"stat": "Sum", "label": "Error Count"}]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "title": "Error Rate by Type",
+        "yAxis": {
+          "left": {
+            "label": "Count"
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["TriggersAPI/Production", "EventIngestionRate", {"stat": "Average", "label": "Events/Second"}]
+        ],
+        "period": 300,
+        "stat": "Average",
+        "region": "us-east-1",
+        "title": "Event Ingestion Rate",
+        "yAxis": {
+          "left": {
+            "label": "Events/Second"
+          }
+        }
+      }
+    }
+  ]
+}
+

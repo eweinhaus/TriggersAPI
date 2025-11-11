@@ -36,11 +36,14 @@ CloudWatch (Logs & Metrics)
   - API URL: `https://4g0xk0jne0.execute-api.us-east-1.amazonaws.com/prod/v1` (includes `/v1` prefix)
 - API Gateway: Regional REST API with `/v1/{proxy+}` catch-all route
 - Lambda: Python 3.11 runtime, handler: `src.main.handler`
-  - IAM Permissions: DynamoDB (GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan), CloudWatch Logs
-- DynamoDB: On-demand billing, TTL enabled, GSI for inbox queries
+  - IAM Permissions: DynamoDB (GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan), CloudWatch Logs, CloudWatch Metrics (PutMetricData, GetMetricStatistics, ListMetrics)
+- DynamoDB: On-demand billing, TTL enabled, GSI for inbox queries and event lookup
   - Events table: `triggers-api-events-prod`
+    - GSI: `status-created_at-index` (inbox queries)
+    - GSI: `event-id-index` (event lookup optimization - Phase 7)
   - API Keys table: `triggers-api-keys-prod`
   - Idempotency table: `triggers-api-idempotency-prod` (Phase 4)
+  - Rate Limits table: `triggers-api-rate-limits-prod` (Phase 8)
 
 ## Component Architecture
 
@@ -56,21 +59,31 @@ CloudWatch (Logs & Metrics)
 2. **DynamoDB Storage**
    - Events table (primary storage)
    - Inbox GSI (status-based queries)
+   - Event lookup GSI (event-id-index for O(1) lookup - Phase 7)
    - API Keys table (authentication)
    - Idempotency table (Phase 4 - implemented)
 
-3. **Authentication Layer**
+3. **Authentication & Security Layer**
    - API key validation
    - Header-based authentication (X-API-Key)
    - Dependency injection pattern
+   - IP allowlisting (Phase 8) - Optional IP-based access control with CIDR support
+   - Rate limiting (Phase 8) - Configurable per API key with token bucket algorithm
 
 4. **Error Handling**
    - Custom exception classes (APIException base class)
    - Standardized error responses with request IDs
    - Request ID correlation in all responses
-   - Structured logging with request IDs
+   - Structured JSON logging with request IDs (Phase 7)
    - Exception handlers for all error types
    - Pydantic validation error handling
+
+5. **Observability (Phase 7)**
+   - Structured JSON logging (CloudWatch Log Insights compatible)
+   - CloudWatch metrics (latency, success rate, error rate, request count)
+   - Request context tracking (request_id, api_key, endpoint, method, duration_ms)
+   - CloudWatch dashboard and alarms
+   - Load testing infrastructure (k6)
 
 ## Design Patterns
 
@@ -140,7 +153,95 @@ ConditionExpression = "#status = :pending"
 ConditionExpression = "attribute_not_exists(idempotency_key)"
 ```
 
-### 9. Idempotency Key Pattern (Phase 4)
+### 9. Rate Limiting Pattern (Phase 8)
+
+**Implementation:**
+- Token bucket algorithm with 60-second windows
+- Rate limit state stored in DynamoDB (rate limits table)
+- Per-API-key configuration (default: 1000 requests/min)
+- Rate limit headers in all responses
+- 429 status code with Retry-After header when limit exceeded
+
+**Code Pattern:**
+```python
+# Check rate limit
+allowed, remaining, reset_timestamp = check_rate_limit(api_key, limit, 60)
+
+# Increment rate limit
+increment_rate_limit(api_key, window_start, limit)
+
+# Middleware adds headers
+response.headers["X-RateLimit-Limit"] = str(limit)
+response.headers["X-RateLimit-Remaining"] = str(remaining)
+response.headers["X-RateLimit-Reset"] = str(reset_timestamp)
+```
+
+### 10. IP Allowlisting Pattern (Phase 8)
+
+**Implementation:**
+- Optional IP-based access control per API key
+- Supports exact IP matches and CIDR notation
+- Extracts client IP from proxy headers (X-Forwarded-For, X-Real-IP)
+- Empty allowlist = allow all (backward compatible)
+- Returns 403 Forbidden for blocked IPs
+
+**Code Pattern:**
+```python
+# Extract client IP
+client_ip = extract_client_ip(request)
+
+# Get allowed IPs for API key
+allowed_ips = get_allowed_ips_for_api_key(api_key)
+
+# Validate IP
+if not ip_matches_allowlist(client_ip, allowed_ips or []):
+    raise ForbiddenError("IP address not allowed")
+```
+
+### 11. Bulk Operations Pattern (Phase 8)
+
+**Implementation:**
+- Process up to 25 items per request (DynamoDB batch limit)
+- Partial success handling (returns both successful and failed items)
+- Idempotency support for bulk create
+- Detailed error reporting per failed item
+
+**Code Pattern:**
+```python
+# Bulk create
+successful, failed = bulk_create_events(events, api_key)
+
+# Response includes both successful and failed items
+return BulkEventResponse(
+    successful=successful,
+    failed=[BulkItemError(index=i, error=err) for i, err in failed],
+    request_id=request_id
+)
+```
+
+### 12. Advanced Filtering Pattern (Phase 8)
+
+**Implementation:**
+- Dynamic FilterExpression building for DynamoDB queries
+- Supports date range, priority, and metadata field filters
+- Filters can be combined (AND logic)
+- Applied to inbox queries
+
+**Code Pattern:**
+```python
+# Build filter expression
+if created_after:
+    filter_expressions.append('created_at >= :created_after')
+if priority:
+    filter_expressions.append('metadata.#priority = :priority')
+if metadata_filters:
+    for key, value in metadata_filters.items():
+        filter_expressions.append(f'metadata.#{key} = :{value}')
+
+query_params['FilterExpression'] = ' AND '.join(filter_expressions)
+```
+
+### 13. Idempotency Key Pattern (Phase 4)
 
 **Implementation:**
 - Separate DynamoDB table for idempotency keys
@@ -177,13 +278,13 @@ cursor = base64.b64encode(json.dumps(last_evaluated_key).encode()).decode()
 last_evaluated_key = json.loads(base64.b64decode(cursor).decode())
 ```
 
-### 5a. Event Lookup Pattern (Scan with Pagination)
+### 5a. Event Lookup Pattern (GSI Optimization - Phase 7)
 
 **Implementation:**
-- `get_event()` uses DynamoDB scan operation when `created_at` not provided
-- Paginates through scan results until event found or entire table scanned
-- Uses `ConsistentRead=True` to ensure recently written items are found
-- Acceptable for MVP scale, could be optimized with GSI for production
+- `get_event()` uses GSI `event-id-index` for O(1) lookup when available
+- Falls back to scan operation for backward compatibility (tables without GSI)
+- Uses `ConsistentRead=True` in scan fallback to ensure recently written items are found
+- GSI query is much faster than scan (O(1) vs O(n))
 
 **Code Pattern:**
 ```python
@@ -232,10 +333,11 @@ while True:
 **Error Codes:**
 - `VALIDATION_ERROR` (400) - Invalid request payload or parameters
 - `UNAUTHORIZED` (401) - Missing or invalid API key
+- `FORBIDDEN` (403) - IP address not allowed (Phase 8)
 - `NOT_FOUND` (404) - Resource not found
 - `CONFLICT` (409) - Resource conflict (e.g., already acknowledged)
 - `PAYLOAD_TOO_LARGE` (413) - Payload exceeds 400KB limit
-- `RATE_LIMIT_EXCEEDED` (429) - Rate limit exceeded
+- `RATE_LIMIT_EXCEEDED` (429) - Rate limit exceeded (Phase 8)
 - `INTERNAL_ERROR` (500) - Server error
 
 ## Data Models
@@ -267,7 +369,9 @@ while True:
   "api_key": "string",
   "source": "string",
   "created_at": "ISO 8601",
-  "is_active": true
+  "is_active": true,
+  "rate_limit": 1000,  # Optional (Phase 8) - requests per minute, default 1000
+  "allowed_ips": ["1.2.3.4", "5.6.7.0/24"]  # Optional (Phase 8) - empty list = allow all
 }
 ```
 
@@ -303,6 +407,15 @@ while True:
 - **Billing Mode:** On-demand
 - **Status:** Implemented and functional
 
+### Rate Limits Table (`triggers-api-rate-limits-{stage}`) - Phase 8 ✅
+
+- **Partition Key:** `api_key` (String)
+- **Sort Key:** `window_start` (Number, Unix timestamp)
+- **Attributes:** request_count (Number), ttl (Number)
+- **TTL Attribute:** `ttl` (Number, Unix timestamp, 1 hour from window_start)
+- **Billing Mode:** On-demand
+- **Status:** Implemented and functional
+
 ## Component Relationships
 
 ### Request Flow
@@ -310,9 +423,11 @@ while True:
 1. **Client** → API Gateway (Phase 2+) or FastAPI directly (Phase 1)
 2. **Middleware** → Request ID extraction/generation
 3. **Authentication** → API key validation
-4. **Endpoint Handler** → Business logic
-5. **Database Layer** → DynamoDB operations
-6. **Response** → Standardized format with request ID
+4. **IP Validation** → IP allowlisting check (Phase 8)
+5. **Rate Limiting** → Rate limit check and increment (Phase 8)
+6. **Endpoint Handler** → Business logic
+7. **Database Layer** → DynamoDB operations
+8. **Response** → Standardized format with request ID and rate limit headers
 
 ### Error Flow
 
@@ -356,6 +471,8 @@ while True:
   - **Local mode (`AUTH_MODE=local`):** Hardcoded test key `test-api-key-12345`
   - **AWS mode (`AUTH_MODE=aws`):** Validated against DynamoDB `triggers-api-keys-{stage}` table
 - API keys stored in DynamoDB with `is_active` flag for revocation
+- **IP Allowlisting (Phase 8):** Optional per-API-key IP allowlist with CIDR support
+- **Rate Limiting (Phase 8):** Configurable per-API-key rate limits (default: 1000 requests/min)
 
 ### Data Protection
 - TLS 1.2+ for data in transit
@@ -409,5 +526,5 @@ tests/
 ---
 
 **Document Status:** Active  
-**Last Updated:** 2025-11-11 (Production deployment fixes - Architecture updated)
+**Last Updated:** 2025-11-11 (Phase 7: Observability & Performance - Architecture updated with observability components)
 

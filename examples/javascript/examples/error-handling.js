@@ -9,6 +9,8 @@ const {
     UnauthorizedError,
     NotFoundError,
     ConflictError,
+    RateLimitError,
+    InternalError,
 } = require('../src/errors');
 
 // Initialize client
@@ -141,6 +143,98 @@ async function main() {
                 console.log(`   You can use this request ID for support/debugging`);
             }
         }
+    }
+
+    // Example 7: Retry logic with exponential backoff
+    console.log('\n7. Retry Logic with Exponential Backoff');
+    
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    function isRetryableError(error) {
+        return error instanceof RateLimitError || 
+               error instanceof InternalError;
+    }
+    
+    async function createEventWithRetry(eventData, maxRetries = 3) {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                return await client.createEvent(eventData);
+            } catch (error) {
+                if (attempt === maxRetries - 1 || !isRetryableError(error)) {
+                    if (isRetryableError(error)) {
+                        console.log(`   ✗ All retries failed: ${error.message}`);
+                    } else {
+                        console.log(`   ✗ Non-retryable error: ${error.message}`);
+                    }
+                    throw error;
+                }
+                const waitTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                console.log(`   ⚠ Retry ${attempt + 1}/${maxRetries} after ${(waitTime / 1000).toFixed(2)}s`);
+                await sleep(waitTime);
+            }
+        }
+    }
+    
+    try {
+        const event = await createEventWithRetry({
+            source: 'test-app',
+            eventType: 'test.event',
+            payload: { test: 'retry-example' }
+        });
+        console.log(`   ✓ Event created: ${event.event_id}`);
+    } catch (error) {
+        console.log(`   ✗ Failed after retries: ${error.message}`);
+    }
+    
+    // Example 8: Retry with idempotency key
+    console.log('\n8. Retry with Idempotency Key');
+    const { v4: uuidv4 } = require('uuid');
+    
+    async function createEventWithRetryAndIdempotency(eventData, maxRetries = 3) {
+        // Generate idempotency key
+        const idempotencyKey = uuidv4();
+        eventData.metadata = eventData.metadata || {};
+        eventData.metadata.idempotency_key = idempotencyKey;
+        
+        console.log(`   Using idempotency key: ${idempotencyKey.substring(0, 20)}...`);
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                return await client.createEvent(eventData);
+            } catch (error) {
+                if (attempt === maxRetries - 1 || !isRetryableError(error)) {
+                    throw error;
+                }
+                const waitTime = Math.pow(2, attempt) * 1000;
+                console.log(`   ⚠ Retry ${attempt + 1}/${maxRetries} after ${waitTime / 1000}s`);
+                await sleep(waitTime);
+            }
+        }
+    }
+    
+    try {
+        const event = await createEventWithRetryAndIdempotency({
+            source: 'test-app',
+            eventType: 'test.event',
+            payload: { test: 'idempotency-retry' }
+        });
+        console.log(`   ✓ Event created with idempotency: ${event.event_id}`);
+        
+        // Retry with same idempotency key (should return same event)
+        const event2 = await createEventWithRetryAndIdempotency({
+            source: 'test-app',
+            eventType: 'test.event',
+            payload: { test: 'idempotency-retry' },
+            metadata: { idempotency_key: event.metadata.idempotency_key }
+        });
+        
+        if (event.event_id === event2.event_id) {
+            console.log(`   ✓ Idempotency working: Same event returned`);
+        }
+    } catch (error) {
+        console.log(`   ✗ Error: ${error.message}`);
     }
 
     console.log('\n=== Error Handling Examples Complete ===');

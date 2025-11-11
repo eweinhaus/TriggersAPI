@@ -101,6 +101,90 @@ export const getInbox = async (params = {}) => {
 };
 
 /**
+ * Create a new webhook
+ * @param {Object} data - Webhook data
+ * @param {string} data.url - Webhook URL
+ * @param {string[]} data.events - Event types to subscribe to
+ * @param {string} data.secret - Webhook secret (min 16 chars)
+ * @returns {Promise} API response
+ */
+export const createWebhook = async (data) => {
+  return api.post('/webhooks', data);
+};
+
+/**
+ * List webhooks
+ * @param {Object} params - Query parameters
+ * @param {number} [params.limit] - Number of webhooks to return
+ * @param {string} [params.cursor] - Pagination cursor
+ * @param {boolean} [params.is_active] - Filter by active status
+ * @returns {Promise} API response
+ */
+export const getWebhooks = async (params = {}) => {
+  return api.get('/webhooks', { params });
+};
+
+/**
+ * Get webhook by ID
+ * @param {string} webhookId - Webhook ID
+ * @returns {Promise} API response
+ */
+export const getWebhook = async (webhookId) => {
+  return api.get(`/webhooks/${webhookId}`);
+};
+
+/**
+ * Update webhook
+ * @param {string} webhookId - Webhook ID
+ * @param {Object} data - Webhook update data
+ * @returns {Promise} API response
+ */
+export const updateWebhook = async (webhookId, data) => {
+  return api.put(`/webhooks/${webhookId}`, data);
+};
+
+/**
+ * Delete webhook
+ * @param {string} webhookId - Webhook ID
+ * @returns {Promise} API response
+ */
+export const deleteWebhook = async (webhookId) => {
+  return api.delete(`/webhooks/${webhookId}`);
+};
+
+/**
+ * Test webhook
+ * @param {string} webhookId - Webhook ID
+ * @returns {Promise} API response
+ */
+export const testWebhook = async (webhookId) => {
+  return api.post(`/webhooks/${webhookId}/test`);
+};
+
+/**
+ * Get analytics data
+ * @param {Object} params - Query parameters
+ * @param {string} [params.start_date] - Start date (YYYY-MM-DD)
+ * @param {string} [params.end_date] - End date (YYYY-MM-DD)
+ * @param {string} [params.metric_type] - Metric type (hourly|daily)
+ * @returns {Promise} API response
+ */
+export const getAnalytics = async (params = {}) => {
+  return api.get('/analytics', { params });
+};
+
+/**
+ * Get analytics summary
+ * @param {Object} params - Query parameters
+ * @param {string} [params.start_date] - Start date (YYYY-MM-DD)
+ * @param {string} [params.end_date] - End date (YYYY-MM-DD)
+ * @returns {Promise} API response
+ */
+export const getAnalyticsSummary = async (params = {}) => {
+  return api.get('/analytics/summary', { params });
+};
+
+/**
  * Get a single event by ID
  * @param {string} eventId - Event ID
  * @returns {Promise} API response

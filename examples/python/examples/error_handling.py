@@ -8,6 +8,8 @@ from triggers_api import (
     NotFoundError,
     ConflictError,
     PayloadTooLargeError,
+    RateLimitError,
+    InternalError,
 )
 
 # Initialize client
@@ -123,6 +125,93 @@ except ValidationError as e:
     if e.request_id:
         print(f"   Request ID: {e.request_id}")
         print(f"   You can use this request ID for support/debugging")
+
+# Example 7: Retry logic with exponential backoff
+print("\n7. Retry Logic with Exponential Backoff")
+import time
+import random
+
+def create_event_with_retry(client, event_data, max_retries=3):
+    """Retry event creation with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return client.create_event(**event_data)
+        except (RateLimitError, InternalError) as e:
+            if attempt == max_retries - 1:
+                print(f"   ✗ All retries failed: {e.message}")
+                raise
+            wait_time = (2 ** attempt) + random.uniform(0, 1)
+            print(f"   ⚠ Retry {attempt + 1}/{max_retries} after {wait_time:.2f}s")
+            time.sleep(wait_time)
+        except Exception as e:
+            # Don't retry on client errors
+            print(f"   ✗ Non-retryable error: {e.message}")
+            raise
+    return None
+
+try:
+    # This will succeed on first attempt (or retry if transient error)
+    event = create_event_with_retry(
+        client,
+        {
+            "source": "test-app",
+            "event_type": "test.event",
+            "payload": {"test": "retry-example"}
+        }
+    )
+    print(f"   ✓ Event created: {event.event_id}")
+except Exception as e:
+    print(f"   ✗ Failed after retries: {e.message}")
+
+# Example 8: Retry with idempotency key
+print("\n8. Retry with Idempotency Key")
+import uuid
+
+def create_event_with_retry_and_idempotency(client, event_data, max_retries=3):
+    """Retry with idempotency key to prevent duplicates."""
+    # Generate idempotency key
+    idempotency_key = str(uuid.uuid4())
+    event_data.setdefault("metadata", {})["idempotency_key"] = idempotency_key
+    
+    print(f"   Using idempotency key: {idempotency_key[:20]}...")
+    
+    for attempt in range(max_retries):
+        try:
+            return client.create_event(**event_data)
+        except (RateLimitError, InternalError) as e:
+            if attempt == max_retries - 1:
+                raise
+            wait_time = 2 ** attempt
+            print(f"   ⚠ Retry {attempt + 1}/{max_retries} after {wait_time}s")
+            time.sleep(wait_time)
+    
+    return None
+
+try:
+    event = create_event_with_retry_and_idempotency(
+        client,
+        {
+            "source": "test-app",
+            "event_type": "test.event",
+            "payload": {"test": "idempotency-retry"}
+        }
+    )
+    print(f"   ✓ Event created with idempotency: {event.event_id}")
+    
+    # Retry with same idempotency key (should return same event)
+    event2 = create_event_with_retry_and_idempotency(
+        client,
+        {
+            "source": "test-app",
+            "event_type": "test.event",
+            "payload": {"test": "idempotency-retry"},
+            "metadata": {"idempotency_key": event.metadata.get("idempotency_key")}
+        }
+    )
+    if event.event_id == event2.event_id:
+        print(f"   ✓ Idempotency working: Same event returned")
+except Exception as e:
+    print(f"   ✗ Error: {e.message}")
 
 print("\n=== Error Handling Examples Complete ===")
 

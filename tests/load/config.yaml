@@ -1,0 +1,49 @@
+# Load test configuration
+
+environments:
+  local:
+    api_url: "http://localhost:8080"
+    api_key: "${LOCAL_API_KEY:-test-api-key-12345}"
+  
+  staging:
+    api_url: "${STAGING_API_URL}"
+    api_key: "${STAGING_API_KEY}"
+  
+  production:
+    api_url: "${PRODUCTION_API_URL}"
+    api_key: "${PRODUCTION_API_KEY}"
+
+scenarios:
+  event_ingestion:
+    duration: "5m"
+    ramp_up: "2m"
+    max_users: 1000
+    thresholds:
+      p95_latency_ms: 100
+      success_rate: 99.9
+      min_throughput: 1000
+  
+  inbox_polling:
+    duration: "5m"
+    ramp_up: "2m"
+    max_users: 500
+    thresholds:
+      p95_latency_ms: 200
+      success_rate: 99.9
+  
+  mixed_workload:
+    duration: "10m"
+    ramp_up: "2m"
+    max_users: 1000
+    thresholds:
+      p95_latency_ms: 150
+      success_rate: 99.9
+  
+  stress_test:
+    duration: "5m"
+    ramp_up: "1m"
+    max_users: 2000
+    thresholds:
+      p95_latency_ms: 500
+      success_rate: 95.0
+

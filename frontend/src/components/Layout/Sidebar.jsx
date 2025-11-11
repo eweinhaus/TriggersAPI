@@ -14,6 +14,7 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import InboxIcon from '@mui/icons-material/Inbox';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import WebhookIcon from '@mui/icons-material/Webhook';
 
 const drawerWidth = 240;
 
@@ -27,6 +28,7 @@ const Sidebar = () => {
   const menuItems = [
     { text: 'Send Event', icon: <SendIcon />, path: '/send-event' },
     { text: 'Inbox', icon: <InboxIcon />, path: '/inbox' },
+    { text: 'Webhooks', icon: <WebhookIcon />, path: '/webhooks' },
     { text: 'Statistics', icon: <BarChartIcon />, path: '/statistics' },
   ];
 

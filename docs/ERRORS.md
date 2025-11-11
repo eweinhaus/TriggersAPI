@@ -25,6 +25,16 @@ All errors follow a standardized format:
 
 ## Error Codes
 
+**Complete List:**
+- `VALIDATION_ERROR` (400) - Invalid request payload or parameters
+- `UNAUTHORIZED` (401) - Missing or invalid API key
+- `FORBIDDEN` (403) - IP address not allowed (Phase 8)
+- `NOT_FOUND` (404) - Resource not found
+- `CONFLICT` (409) - Resource conflict (e.g., already acknowledged)
+- `PAYLOAD_TOO_LARGE` (413) - Payload exceeds 400KB limit
+- `RATE_LIMIT_EXCEEDED` (429) - Rate limit exceeded (Phase 8)
+- `INTERNAL_ERROR` (500) - Server error
+
 ### VALIDATION_ERROR (400)
 
 Request validation failed. Check the `details` field for specific issues.
@@ -55,6 +65,37 @@ Request validation failed. Check the `details` field for specific issues.
 - Review the `details.field` to identify the problematic field
 - Check the `details.issue` for specific validation rules
 - Follow the `details.suggestion` to resolve the issue
+
+### FORBIDDEN (403) - Phase 8
+
+IP address not allowed. Your API key has IP allowlisting configured and your current IP is not in the allowed list.
+
+**Common Causes:**
+- API key configured with IP allowlist
+- Current IP address not in allowed list
+- IP address changed (dynamic IP)
+- Proxy/VPN IP not whitelisted
+
+**Example:**
+```json
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "IP address not allowed",
+    "details": {
+      "client_ip": "10.0.0.1",
+      "allowed_ips": ["192.168.1.0/24", "203.0.113.0/24"]
+    },
+    "request_id": "660e8400-e29b-41d4-a716-446655440001"
+  }
+}
+```
+
+**How to Fix:**
+- Contact API administrator to add your IP to the allowlist
+- If using dynamic IP, request CIDR range be added
+- If behind proxy/VPN, ensure proxy IP is whitelisted
+- Verify your current IP address matches expected value
 
 ### UNAUTHORIZED (401)
 
@@ -174,33 +215,47 @@ Request payload exceeds size limit (400KB).
 - Use references instead of full data
 - Split into multiple events if needed
 
-### RATE_LIMIT_EXCEEDED (429)
+### RATE_LIMIT_EXCEEDED (429) - Phase 8
 
-Rate limit exceeded. Too many requests in a time period.
+Rate limit exceeded. Too many requests in the time window.
 
 **Common Causes:**
-- Too many requests per second
-- Burst of requests
-- Exceeded daily/hourly limits
+- Exceeded requests per minute limit for your API key
+- Burst of requests in short time period
+- Default limit: 1000 requests per minute
+- Custom limits may be lower
 
 **Example:**
 ```json
 {
   "error": {
     "code": "RATE_LIMIT_EXCEEDED",
-    "message": "Rate limit exceeded. Please try again later.",
-    "details": {},
+    "message": "Rate limit exceeded",
+    "details": {
+      "limit": 1000,
+      "retry_after": 45
+    },
     "request_id": "660e8400-e29b-41d4-a716-446655440001"
   }
 }
 ```
 
+**Response Headers:**
+- `Retry-After`: Number of seconds to wait before retrying
+
 **How to Fix:**
-- Implement exponential backoff
-- Reduce request frequency
-- Batch requests when possible
-- Wait before retrying
-- Check rate limit headers if available
+1. Wait for the duration specified in `Retry-After` header
+2. Implement exponential backoff for retries
+3. Use bulk operations to reduce request count
+4. Monitor `X-RateLimit-Remaining` header to track usage
+5. Contact API administrator to increase rate limit if needed
+6. Consider implementing request queuing/throttling on client side
+
+**Best Practices:**
+- Check `X-RateLimit-Remaining` header before making requests
+- Implement client-side rate limiting to stay under limit
+- Use bulk endpoints when processing multiple events
+- Cache responses when possible to reduce API calls
 
 ### INTERNAL_ERROR (500)
 

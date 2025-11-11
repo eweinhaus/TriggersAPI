@@ -10,6 +10,12 @@ Welcome to the Zapier Triggers API documentation. This directory contains compre
 - **[Error Handling Guide](ERRORS.md)** - Error codes and troubleshooting
 - **[cURL Examples](CURL_EXAMPLES.md)** - Complete cURL command reference
 
+## Advanced Documentation
+
+- **[Architecture Documentation](ARCHITECTURE.md)** - System architecture, components, and design patterns
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues, solutions, and debugging tips
+- **[Performance Tuning](PERFORMANCE.md)** - Optimization best practices and performance benchmarks
+
 ## Example Clients
 
 - **[Python Client](../examples/python/README.md)** - Python client library and examples

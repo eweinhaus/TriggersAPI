@@ -54,6 +54,13 @@ class RateLimitExceededError(APIException):
         super().__init__(429, "RATE_LIMIT_EXCEEDED", message, details)
 
 
+class ForbiddenError(APIException):
+    """IP address not allowed."""
+    
+    def __init__(self, message: str = "IP address not allowed", details: dict = None):
+        super().__init__(403, "FORBIDDEN", message, details)
+
+
 class InternalError(APIException):
     """Internal server error."""
     

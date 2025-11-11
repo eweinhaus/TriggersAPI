@@ -28,7 +28,8 @@ def get_dynamodb_resource():
     )
 
 
-def create_api_key(api_key: str, source: str = None, stage: str = 'prod', region: str = 'us-east-1'):
+def create_api_key(api_key: str, source: str = None, stage: str = 'prod', region: str = 'us-east-1', 
+                   rate_limit: int = None, allowed_ips: list = None):
     """
     Create an API key in DynamoDB.
     
@@ -37,6 +38,8 @@ def create_api_key(api_key: str, source: str = None, stage: str = 'prod', region
         source: Source identifier (optional)
         stage: Deployment stage (default: 'prod')
         region: AWS region (default: 'us-east-1')
+        rate_limit: Rate limit (requests per minute, default: 1000)
+        allowed_ips: List of allowed IPs/CIDR ranges (optional, empty list = allow all)
     """
     os.environ['AWS_REGION'] = region
     dynamodb = get_dynamodb_resource()
@@ -64,12 +67,22 @@ def create_api_key(api_key: str, source: str = None, stage: str = 'prod', region
     if source:
         item['source'] = source
     
+    if rate_limit is not None:
+        item['rate_limit'] = rate_limit
+    
+    if allowed_ips is not None:
+        item['allowed_ips'] = allowed_ips
+    
     try:
         table.put_item(Item=item)
         print(f"API key created successfully in table {table_name}")
         print(f"  API Key: {api_key}")
         print(f"  Source: {source or 'N/A'}")
         print(f"  Active: True")
+        if rate_limit is not None:
+            print(f"  Rate Limit: {rate_limit} requests/min")
+        if allowed_ips is not None:
+            print(f"  Allowed IPs: {allowed_ips if allowed_ips else 'All IPs allowed'}")
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceNotFoundException':
             print(f"Error: Table {table_name} does not exist. Please create it first.")
@@ -85,6 +98,8 @@ def main():
     parser.add_argument('--source', help='Source identifier (optional)')
     parser.add_argument('--stage', default='prod', help='Deployment stage (default: prod)')
     parser.add_argument('--region', default='us-east-1', help='AWS region (default: us-east-1)')
+    parser.add_argument('--rate-limit', type=int, help='Rate limit (requests per minute, default: 1000)')
+    parser.add_argument('--allowed-ips', help='Comma-separated list of allowed IPs/CIDR ranges (optional, empty = allow all)')
     
     args = parser.parse_args()
     
@@ -95,11 +110,21 @@ def main():
             print("Cancelled.")
             return
     
+    # Parse allowed IPs
+    allowed_ips_list = None
+    if args.allowed_ips is not None:
+        if args.allowed_ips.strip():
+            allowed_ips_list = [ip.strip() for ip in args.allowed_ips.split(',')]
+        else:
+            allowed_ips_list = []  # Empty list = allow all
+    
     create_api_key(
         api_key=args.api_key,
         source=args.source,
         stage=args.stage,
-        region=args.region
+        region=args.region,
+        rate_limit=args.rate_limit,
+        allowed_ips=allowed_ips_list
     )
 
 

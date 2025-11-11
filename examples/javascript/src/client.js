@@ -3,6 +3,7 @@
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 const { mapStatusCodeToError } = require('./errors');
 
 class TriggersAPIClient {
@@ -14,8 +15,9 @@ class TriggersAPIClient {
      * @param {string} [options.baseUrl='http://localhost:8080'] - Base URL of the API
      * @param {number} [options.timeout=30000] - Request timeout in milliseconds
      * @param {string} [options.requestId] - Optional default request ID for tracking
+     * @param {string} [options.signingSecret] - Optional secret for HMAC request signing
      */
-    constructor({ apiKey, baseUrl = 'http://localhost:8080', timeout = 30000, requestId = null } = {}) {
+    constructor({ apiKey, baseUrl = 'http://localhost:8080', timeout = 30000, requestId = null, signingSecret = null } = {}) {
         if (!apiKey) {
             throw new Error('API key is required');
         }
@@ -24,6 +26,7 @@ class TriggersAPIClient {
         this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
         this.timeout = timeout;
         this.defaultRequestId = requestId;
+        this.signingSecret = signingSecret;
         
         // Create axios instance with default headers
         this.client = axios.create({
@@ -54,6 +57,31 @@ class TriggersAPIClient {
         // Add request ID if provided
         if (requestId || this.defaultRequestId) {
             headers['X-Request-ID'] = requestId || this.defaultRequestId;
+        }
+        
+        // Add signature headers if signing secret is provided
+        if (this.signingSecret) {
+            const url = require('url');
+            const fullUrl = url.resolve(this.baseUrl, endpoint);
+            const parsedUrl = url.parse(fullUrl, true);
+            const path = parsedUrl.pathname;
+            const queryString = parsedUrl.query ? new URLSearchParams(parsedUrl.query).toString() : '';
+            
+            // Get body hash
+            const bodyString = data ? JSON.stringify(data) : '';
+            const bodyHash = crypto.createHash('sha256').update(bodyString).digest('hex');
+            
+            // Generate signature
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            const signatureString = `${method}\n${path}\n${queryString}\n${timestamp}\n${bodyHash}`;
+            const signature = crypto
+                .createHmac('sha256', this.signingSecret)
+                .update(signatureString)
+                .digest('base64');
+            
+            headers['X-Signature-Timestamp'] = timestamp;
+            headers['X-Signature'] = signature;
+            headers['X-Signature-Version'] = 'v1';
         }
         
         try {

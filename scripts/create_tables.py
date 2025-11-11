@@ -90,6 +90,18 @@ def create_events_table(dynamodb):
                     'Projection': {
                         'ProjectionType': 'ALL'
                     }
+                },
+                {
+                    'IndexName': 'event-id-index',
+                    'KeySchema': [
+                        {
+                            'AttributeName': 'event_id',
+                            'KeyType': 'HASH'
+                        }
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    }
                 }
             ],
             BillingMode='PAY_PER_REQUEST'
@@ -207,6 +219,201 @@ def create_idempotency_table(dynamodb):
         raise
 
 
+def create_rate_limits_table(dynamodb):
+    """
+    Create the rate limits table.
+    
+    Args:
+        dynamodb: boto3 DynamoDB resource
+    """
+    stage = os.getenv('DEPLOYMENT_STAGE', 'prod')
+    table_name = f'triggers-api-rate-limits-{stage}'
+    
+    try:
+        # Check if table exists
+        table = dynamodb.Table(table_name)
+        table.load()
+        print(f"Table {table_name} already exists")
+        return table
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ResourceNotFoundException':
+            raise
+    
+    # Create table
+    try:
+        table = dynamodb.create_table(
+            TableName=table_name,
+            KeySchema=[
+                {
+                    'AttributeName': 'api_key',
+                    'KeyType': 'HASH'  # Partition key
+                },
+                {
+                    'AttributeName': 'window_start',
+                    'KeyType': 'RANGE'  # Sort key
+                }
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'api_key',
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': 'window_start',
+                    'AttributeType': 'N'
+                }
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        
+        # Wait for table to be created
+        table.wait_until_exists()
+        print(f"Table {table_name} created successfully")
+        return table
+        
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            print(f"Table {table_name} already exists")
+            return dynamodb.Table(table_name)
+        raise
+
+
+def create_webhooks_table(dynamodb):
+    """
+    Create the webhooks table with GSI for querying by API key.
+    
+    Args:
+        dynamodb: boto3 DynamoDB resource
+    """
+    stage = os.getenv('DEPLOYMENT_STAGE', 'prod')
+    table_name = f'triggers-api-webhooks-{stage}' if stage != 'local' else 'triggers-api-webhooks'
+    
+    try:
+        # Check if table exists
+        table = dynamodb.Table(table_name)
+        table.load()
+        print(f"Table {table_name} already exists")
+        return table
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ResourceNotFoundException':
+            raise
+    
+    # Create table
+    try:
+        table = dynamodb.create_table(
+            TableName=table_name,
+            KeySchema=[
+                {
+                    'AttributeName': 'webhook_id',
+                    'KeyType': 'HASH'  # Partition key
+                }
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'webhook_id',
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': 'api_key',
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': 'is_active',
+                    'AttributeType': 'N'  # Store as number (0/1) for DynamoDB compatibility
+                }
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'api-key-is-active-index',
+                    'KeySchema': [
+                        {
+                            'AttributeName': 'api_key',
+                            'KeyType': 'HASH'
+                        },
+                        {
+                            'AttributeName': 'is_active',
+                            'KeyType': 'RANGE'
+                        }
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    }
+                }
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        
+        # Wait for table to be created
+        table.wait_until_exists()
+        print(f"Table {table_name} created successfully")
+        return table
+        
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            print(f"Table {table_name} already exists")
+            return dynamodb.Table(table_name)
+        raise
+
+
+def create_analytics_table(dynamodb):
+    """
+    Create the analytics table.
+    
+    Args:
+        dynamodb: boto3 DynamoDB resource
+    """
+    stage = os.getenv('DEPLOYMENT_STAGE', 'prod')
+    table_name = f'triggers-api-analytics-{stage}' if stage != 'local' else 'triggers-api-analytics'
+    
+    try:
+        # Check if table exists
+        table = dynamodb.Table(table_name)
+        table.load()
+        print(f"Table {table_name} already exists")
+        return table
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'ResourceNotFoundException':
+            raise
+    
+    # Create table
+    try:
+        table = dynamodb.create_table(
+            TableName=table_name,
+            KeySchema=[
+                {
+                    'AttributeName': 'metric_date',
+                    'KeyType': 'HASH'  # Partition key
+                },
+                {
+                    'AttributeName': 'metric_type',
+                    'KeyType': 'RANGE'  # Sort key
+                }
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'metric_date',
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': 'metric_type',
+                    'AttributeType': 'S'
+                }
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        
+        # Wait for table to be created
+        table.wait_until_exists()
+        print(f"Table {table_name} created successfully")
+        return table
+        
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            print(f"Table {table_name} already exists")
+            return dynamodb.Table(table_name)
+        raise
+
+
 def create_tables():
     """Create all required DynamoDB tables."""
     dynamodb = get_dynamodb_resource()
@@ -215,6 +422,9 @@ def create_tables():
     create_events_table(dynamodb)
     create_api_keys_table(dynamodb)
     create_idempotency_table(dynamodb)
+    create_rate_limits_table(dynamodb)
+    create_webhooks_table(dynamodb)
+    create_analytics_table(dynamodb)
     print("All tables created successfully")
 
 

@@ -4,7 +4,7 @@ A unified, real-time event ingestion system that enables external systems to sen
 
 ## Project Status
 
-**Current Phase:** Phase 6 - Frontend Dashboard ✅ Completed  
+**Current Phase:** Phase 8 - API Enhancements & Developer Experience ✅ Completed  
 **Deployment Status:** ✅ Production Deployed
 
 ### Production URLs
@@ -97,8 +97,52 @@ See [Frontend README](frontend/README.md) for details.
 - [Usage Examples](docs/EXAMPLES.md) - Common use cases and patterns
 - [Error Handling Guide](docs/ERRORS.md) - Error codes and handling
 - [cURL Examples](docs/CURL_EXAMPLES.md) - Complete cURL command reference
+- [Architecture Documentation](docs/ARCHITECTURE.md) - System architecture and design
+- [Structured Logging](docs/LOGGING.md) - Logging format and CloudWatch Log Insights queries
+- [CloudWatch Metrics](docs/METRICS.md) - Metrics reference and monitoring
+- [Load Testing](tests/load/README.md) - Load testing guide and scenarios
+- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Performance Tuning](docs/PERFORMANCE.md) - Optimization best practices
 - [Python Client](examples/python/README.md) - Python client documentation
 - [JavaScript Client](examples/javascript/README.md) - JavaScript client documentation
+
+## API Versioning
+
+The API uses URL-based versioning. All endpoints are prefixed with `/v1`.
+
+### Current Version
+
+**Version:** v1  
+**Status:** Stable and fully supported
+
+### Versioning Policy
+
+- **Breaking Changes:** Result in new major version (e.g., v1 → v2)
+- **Non-Breaking Changes:** Made within current version
+- **Support Lifecycle:** Previous versions supported for 6-12 months after new version release
+- **Deprecation Timeline:** 6 months notice before version removal
+
+### Version in Base URL
+
+Specify the version in your API client base URL:
+
+```python
+# Python
+client = TriggersAPIClient(
+    api_key="your-api-key",
+    base_url="https://api.example.com/v1"  # Version in URL
+)
+```
+
+```javascript
+// JavaScript
+const client = new TriggersAPIClient({
+    apiKey: 'your-api-key',
+    baseUrl: 'https://api.example.com/v1'  // Version in URL
+});
+```
+
+For detailed versioning information, see [API Versioning](docs/API.md#api-versioning) in the API reference.
 
 ## Local Development Setup
 
@@ -246,10 +290,11 @@ All error responses follow a standardized format with enhanced context and sugge
 **Error Codes:**
 - `VALIDATION_ERROR` (400): Invalid request payload or parameters
 - `UNAUTHORIZED` (401): Missing or invalid API key
+- `FORBIDDEN` (403): IP address not allowed (Phase 8)
 - `NOT_FOUND` (404): Resource not found (includes suggestion)
 - `CONFLICT` (409): Resource conflict (e.g., already acknowledged)
 - `PAYLOAD_TOO_LARGE` (413): Payload exceeds 400KB limit
-- `RATE_LIMIT_EXCEEDED` (429): Rate limit exceeded
+- `RATE_LIMIT_EXCEEDED` (429): Rate limit exceeded (Phase 8)
 - `INTERNAL_ERROR` (500): Server error
 
 **Example Error Response:**
@@ -448,6 +493,40 @@ triggers-api/
 
 ## AWS Deployment
 
+### Lambda Provisioned Concurrency
+
+Provisioned concurrency is configured to reduce Lambda cold starts. By default, 2 concurrent executions are provisioned.
+
+**Configuration:**
+- Default: 2 provisioned concurrent executions
+- Configurable via SAM parameter: `ProvisionedConcurrency`
+- Set to 0 to disable provisioned concurrency
+
+**Cost Implications:**
+- Provisioned concurrency incurs additional costs
+- Cost: ~$0.015 per GB-second per provisioned instance
+- Example: 2 instances × 512MB × $0.015 = ~$0.015/hour (~$11/month)
+- Minimum billing: 1 hour per provisioned instance
+
+**Performance Benefits:**
+- Reduces cold start latency from ~1-2 seconds to < 100ms
+- Improves response times for first requests
+- Better user experience for low-traffic scenarios
+
+**Deployment:**
+```bash
+# Deploy with default (2 instances)
+sam deploy --guided
+
+# Deploy with custom concurrency
+sam deploy --parameter-overrides ProvisionedConcurrency=5
+
+# Disable provisioned concurrency
+sam deploy --parameter-overrides ProvisionedConcurrency=0
+```
+
+**Note:** Provisioned concurrency is configured in `template.yaml` and requires `AutoPublishAlias: live` for the Lambda function.
+
 ### Prerequisites
 
 - AWS account with appropriate permissions
@@ -550,7 +629,16 @@ The following environment variables are automatically set by the SAM template:
 - `AUTH_MODE`: `aws` (production mode)
 - `LOG_LEVEL`: `INFO`
 
-### CloudWatch Logs
+## Observability
+
+The API includes comprehensive observability features for monitoring and debugging.
+
+### Structured Logging
+
+All logs are emitted as structured JSON with request correlation:
+- **Request ID tracking**: All logs include `request_id` for correlation
+- **CloudWatch Log Insights**: Compatible JSON format for advanced queries
+- **Context injection**: Automatic inclusion of endpoint, method, API key (masked), duration
 
 **View logs:**
 ```bash
@@ -559,6 +647,52 @@ aws logs tail /aws/lambda/triggers-api-prod --follow
 
 **Or in AWS Console:**
 CloudWatch → Log groups → `/aws/lambda/triggers-api-prod`
+
+**Log Insights Queries:**
+See [Structured Logging Documentation](docs/LOGGING.md) for useful CloudWatch Log Insights queries.
+
+### CloudWatch Metrics
+
+Custom metrics are automatically emitted for:
+- **API Latency**: p50, p95, p99 per endpoint
+- **Request Count**: Total requests per endpoint
+- **Success/Error Rate**: Success and error counts
+- **Event Ingestion Rate**: Events per second
+
+**Setup Dashboard:**
+```bash
+./scripts/setup_cloudwatch_dashboard.sh
+```
+
+**Setup Alarms:**
+```bash
+./scripts/setup_cloudwatch_alarms.sh
+```
+
+**Metrics Namespace:** `TriggersAPI/Production`
+
+See [CloudWatch Metrics Documentation](docs/METRICS.md) for detailed metrics reference.
+
+### Load Testing
+
+Automated load testing suite using k6:
+- **Event Ingestion**: High volume event creation test
+- **Inbox Polling**: Concurrent inbox query test
+- **Mixed Workload**: Realistic traffic pattern test
+- **Stress Test**: Beyond normal capacity testing
+
+**Run Load Tests:**
+```bash
+# Local environment
+./scripts/run_load_tests.sh event_ingestion local
+
+# Staging environment
+export STAGING_API_URL="https://api-staging.example.com"
+export STAGING_API_KEY="your-key"
+./scripts/run_load_tests.sh event_ingestion staging
+```
+
+See [Load Testing Guide](tests/load/README.md) for complete documentation.
 
 ### Troubleshooting
 

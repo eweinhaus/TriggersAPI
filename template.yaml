@@ -7,6 +7,12 @@ Parameters:
     Type: String
     Default: prod
     Description: Deployment stage
+  ProvisionedConcurrency:
+    Type: Number
+    Default: 2
+    Description: Number of provisioned concurrent executions for Lambda function
+    MinValue: 0
+    MaxValue: 10
 
 Globals:
   Function:
@@ -18,6 +24,8 @@ Globals:
         DYNAMODB_TABLE_EVENTS: !Ref EventsTable
         DYNAMODB_TABLE_KEYS: !Ref ApiKeysTable
         DYNAMODB_TABLE_IDEMPOTENCY: !Ref IdempotencyTable
+        DYNAMODB_TABLE_WEBHOOKS: !Ref WebhooksTable
+        WEBHOOK_DELIVERY_QUEUE_URL: !Ref WebhookDeliveryQueue
         AWS_REGION: !Ref AWS::Region
         AUTH_MODE: aws
         LOG_LEVEL: INFO
@@ -31,6 +39,9 @@ Resources:
       Handler: src.main.handler
       CodeUri: .
       Description: Zapier Triggers API Lambda function
+      AutoPublishAlias: live
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: !Ref ProvisionedConcurrency
       Policies:
       - Version: '2012-10-17'
         Statement:
@@ -50,6 +61,14 @@ Resources:
             Resource:
               - !GetAtt EventsTable.Arn
               - !Sub '${EventsTable.Arn}/index/status-created_at-index'
+              - !Sub '${EventsTable.Arn}/index/event-id-index'
+          # CloudWatch Metrics Permissions
+          - Effect: Allow
+            Action:
+              - cloudwatch:PutMetricData
+              - cloudwatch:GetMetricStatistics
+              - cloudwatch:ListMetrics
+            Resource: '*'
           # DynamoDB API Keys Table Permissions
           - Effect: Allow
             Action:
@@ -61,6 +80,23 @@ Resources:
               - dynamodb:GetItem
               - dynamodb:PutItem
             Resource: !GetAtt IdempotencyTable.Arn
+          # DynamoDB Webhooks Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt WebhooksTable.Arn
+              - !Sub '${WebhooksTable.Arn}/index/api-key-is-active-index'
+          # SQS Permissions for Webhook Delivery
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt WebhookDeliveryQueue.Arn
           # CloudWatch Logs Permissions
           - Effect: Allow
             Action:
@@ -95,6 +131,8 @@ Resources:
     Properties:
       TableName: !Sub triggers-api-events-${Stage}
       BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
       AttributeDefinitions:
         - AttributeName: event_id
           AttributeType: S
@@ -114,6 +152,12 @@ Resources:
               KeyType: HASH
             - AttributeName: created_at
               KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: event-id-index
+          KeySchema:
+            - AttributeName: event_id
+              KeyType: HASH
           Projection:
             ProjectionType: ALL
       TimeToLiveSpecification:
@@ -165,6 +209,207 @@ Resources:
       LogGroupName: !Sub /aws/lambda/triggers-api-${Stage}
       RetentionInDays: 7
       DeletionPolicy: Delete
+
+  # SQS Queue for Webhook Delivery
+  WebhookDeliveryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub triggers-api-webhook-delivery-${Stage}
+      VisibilityTimeoutSeconds: 30
+      MessageRetentionPeriod: 1209600  # 14 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WebhookDLQ.Arn
+        maxReceiveCount: 3
+
+  # Dead Letter Queue for Failed Webhooks
+  WebhookDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub triggers-api-webhook-dlq-${Stage}
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # Lambda Function for Webhook Delivery
+  WebhookDeliveryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.11
+      Handler: src.lambda_handlers.webhook_delivery.handler
+      CodeUri: .
+      Description: Deliver webhooks via HTTP POST
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          AWS_REGION: !Ref AWS::Region
+          DYNAMODB_TABLE_WEBHOOKS: !Sub triggers-api-webhooks-${Stage}
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+          # DynamoDB Webhooks Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource: !GetAtt WebhooksTable.Arn
+          # SQS Permissions
+          - Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt WebhookDeliveryQueue.Arn
+          # CloudWatch Logs Permissions
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/webhook-delivery-${Stage}:*'
+      Events:
+        WebhookDeliveryEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WebhookDeliveryQueue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+
+  # DynamoDB Webhooks Table
+  WebhooksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub triggers-api-webhooks-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: webhook_id
+          AttributeType: S
+        - AttributeName: api_key
+          AttributeType: S
+        - AttributeName: is_active
+          AttributeType: N
+      KeySchema:
+        - AttributeName: webhook_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: api-key-is-active-index
+          KeySchema:
+            - AttributeName: api_key
+              KeyType: HASH
+            - AttributeName: is_active
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      DeletionPolicy: Retain
+
+  # Lambda Function for Key Expiration
+  KeyExpirationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.11
+      Handler: src.lambda_handlers.key_expiration.handler
+      CodeUri: .
+      Description: Expire old API keys after rotation transition period
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          AWS_REGION: !Ref AWS::Region
+          DYNAMODB_TABLE_KEYS: !Ref ApiKeysTable
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+          # DynamoDB API Keys Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Resource: !GetAtt ApiKeysTable.Arn
+          # CloudWatch Logs Permissions
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/key-expiration-${Stage}:*'
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+            Description: Daily cleanup of expired API keys
+
+  # DynamoDB Analytics Table
+  AnalyticsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub triggers-api-analytics-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: metric_date
+          AttributeType: S
+        - AttributeName: metric_type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: metric_date
+          KeyType: HASH
+        - AttributeName: metric_type
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      DeletionPolicy: Retain
+
+  # Lambda Function for Analytics Processing
+  AnalyticsProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.11
+      Handler: src.lambda_handlers.analytics_processor.handler
+      CodeUri: .
+      Description: Process DynamoDB Streams for analytics aggregation
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+          AWS_REGION: !Ref AWS::Region
+          DYNAMODB_TABLE_ANALYTICS: !Sub triggers-api-analytics-${Stage}
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+          # DynamoDB Events Table Stream Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:DescribeStream
+              - dynamodb:ListStreams
+            Resource: !Sub '${EventsTable.StreamArn}'
+          # DynamoDB Analytics Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Resource: !GetAtt AnalyticsTable.Arn
+          # CloudWatch Logs Permissions
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/analytics-processor-${Stage}:*'
+      Events:
+        StreamEvent:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt EventsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
 
 Outputs:
   ApiUrl:

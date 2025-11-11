@@ -77,7 +77,8 @@ class TriggersAPIClient:
         api_key: str,
         base_url: str = "http://localhost:8080",
         timeout: int = 30,
-        request_id: Optional[str] = None
+        request_id: Optional[str] = None,
+        signing_secret: Optional[str] = None
     ):
         """
         Initialize the Triggers API client.
@@ -87,12 +88,14 @@ class TriggersAPIClient:
             base_url: Base URL of the API (default: http://localhost:8080)
             timeout: Request timeout in seconds (default: 30)
             request_id: Optional request ID for tracking (default: None)
+            signing_secret: Optional secret for HMAC request signing (default: None)
         """
         self.api_key = api_key
         # Ensure base_url doesn't end with a slash
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.default_request_id = request_id
+        self.signing_secret = signing_secret
         self.session = requests.Session()
         self.session.headers.update({
             "Content-Type": "application/json",
@@ -129,6 +132,38 @@ class TriggersAPIClient:
         # Add request ID if provided
         if request_id or self.default_request_id:
             headers["X-Request-ID"] = request_id or self.default_request_id
+        
+        # Add signature headers if signing secret is provided
+        if self.signing_secret:
+            import time
+            import hmac
+            import hashlib
+            import base64
+            from urllib.parse import urlparse, parse_qs, urlencode
+            
+            # Parse URL to get path and query
+            parsed_url = urlparse(url)
+            path = parsed_url.path
+            query_string = urlencode(parse_qs(parsed_url.query), doseq=True) if parsed_url.query else ''
+            
+            # Get body hash
+            body_bytes = json.dumps(data).encode() if data else b''
+            body_hash = hashlib.sha256(body_bytes).hexdigest()
+            
+            # Generate signature
+            timestamp = str(int(time.time()))
+            signature_string = f"{method}\n{path}\n{query_string}\n{timestamp}\n{body_hash}"
+            signature = base64.b64encode(
+                hmac.new(
+                    self.signing_secret.encode(),
+                    signature_string.encode(),
+                    hashlib.sha256
+                ).digest()
+            ).decode()
+            
+            headers["X-Signature-Timestamp"] = timestamp
+            headers["X-Signature"] = signature
+            headers["X-Signature-Version"] = "v1"
         
         try:
             response = self.session.request(
