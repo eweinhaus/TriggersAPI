@@ -1,10 +1,13 @@
 """Health check endpoint"""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from src.models import HealthResponse
 from src.utils import get_iso_timestamp
+from src.utils.logging import get_logger
+from src.utils.metrics import record_latency, record_success, record_request_count
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get(
@@ -37,11 +40,31 @@ router = APIRouter()
         }
     }
 )
-async def health_check():
+async def health_check(request: Request = None):
     """
     Health check endpoint.
     No authentication required.
     """
+    duration_ms = getattr(request.state, 'duration_ms', None) if request else None
+    
+    # Record metrics
+    endpoint = '/v1/health'
+    method = 'GET'
+    if duration_ms:
+        record_latency(endpoint, method, duration_ms)
+    record_success(endpoint, method)
+    record_request_count(endpoint, method)
+    
+    logger.info(
+        "Health check",
+        extra={
+            'operation': 'health_check',
+            'status': 'healthy',
+            'status_code': 200,
+            'duration_ms': duration_ms,
+        }
+    )
+    
     return HealthResponse(
         status="healthy",
         timestamp=get_iso_timestamp(),

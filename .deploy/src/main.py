@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -13,16 +14,25 @@ from mangum import Mangum
 from src.database import create_tables
 from src.exceptions import APIException, ValidationError, InternalError
 from src.utils import generate_uuid
+from src.utils.logging import get_logger, set_request_context, clear_request_context
+from src.utils.metrics import flush_metrics, record_error, record_latency, record_request_count
 from src.models import ErrorResponse, ErrorDetail
-from src.endpoints import health, events, inbox
+from src.endpoints import health, events, inbox, webhooks, api_keys, analytics
 
-# Configure logging
+# Configure structured JSON logging
 log_level = os.getenv('LOG_LEVEL', 'INFO')
 logging.basicConfig(
     level=getattr(logging, log_level.upper()),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handlers=[logging.StreamHandler()],
+    force=True  # Override any existing configuration
 )
-logger = logging.getLogger(__name__)
+# Configure root logger with JSON formatter
+root_logger = logging.getLogger()
+for handler in root_logger.handlers:
+    from src.utils.logging import JSONFormatter
+    handler.setFormatter(JSONFormatter())
+
+logger = get_logger(__name__)
 
 # OpenAPI tags metadata
 tags_metadata = [
@@ -37,6 +47,18 @@ tags_metadata = [
     {
         "name": "inbox",
         "description": "Inbox endpoints. Retrieve pending events with pagination and filtering. Requires API key authentication.",
+    },
+    {
+        "name": "webhooks",
+        "description": "Webhook management endpoints. Create, update, delete, and test webhooks for push-based event delivery. Requires API key authentication.",
+    },
+    {
+        "name": "api-keys",
+        "description": "API key management endpoints. Rotate keys and view version history. Requires API key authentication.",
+    },
+    {
+        "name": "analytics",
+        "description": "Analytics endpoints. Get event insights, metrics, and export data. Requires API key authentication.",
     },
 ]
 
@@ -100,25 +122,76 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # For MVP, allow all origins
     allow_credentials=False,  # Must be False when using allow_origins=["*"]
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS", "PUT"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID", "X-Signature", "X-Signature-Timestamp", "X-Signature-Version"],
     max_age=3600,
 )
+
+# Add optional signature validation middleware
+# Only enabled if ENABLE_REQUEST_SIGNING=true
+enable_signing = os.getenv('ENABLE_REQUEST_SIGNING', 'false').lower() == 'true'
+if enable_signing:
+    from src.middleware.signature_validation import signature_validation_middleware
+    app.middleware("http")(signature_validation_middleware)
 
 # Create v1 router
 v1_router = app.router  # We'll use the main router with prefix
 
-# Request ID middleware
+# Request ID and context middleware with timing
 @app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    """Extract or generate request ID and add to request state and response."""
+async def add_request_id_and_context(request: Request, call_next):
+    """Extract or generate request ID, set logging context, and measure request duration."""
+    # Generate or extract request ID
     request_id = request.headers.get("X-Request-ID") or generate_uuid()
     request.state.request_id = request_id
     
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
+    # Extract request context for logging
+    api_key = request.headers.get("X-API-Key")
+    endpoint = request.url.path
+    method = request.method
     
-    return response
+    # Set logging context
+    set_request_context(
+        request_id=request_id,
+        api_key=api_key,
+        endpoint=endpoint,
+        method=method
+    )
+    
+    # Measure request duration
+    start_time = time.perf_counter()
+    
+    try:
+        response = await call_next(request)
+        
+        # Calculate duration
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        request.state.duration_ms = duration_ms
+        
+        # Add duration to response headers for debugging
+        response.headers["X-Request-ID"] = request_id
+        
+        return response
+    finally:
+        # Flush metrics and clear logging context after request
+        try:
+            flush_metrics()
+        except Exception as e:
+            # Don't fail request if metrics flush fails
+            logger.warning(
+                "Failed to flush metrics",
+                extra={'error': str(e)}
+            )
+        clear_request_context()
+
+
+# IP validation middleware (after auth, before rate limit)
+from src.middleware.ip_validation import ip_validation_middleware
+app.middleware("http")(ip_validation_middleware)
+
+# Rate limiting middleware (after IP validation, before endpoints)
+from src.middleware.rate_limit import rate_limit_middleware
+app.middleware("http")(rate_limit_middleware)
 
 
 # Exception handlers
@@ -194,13 +267,28 @@ async def pydantic_validation_handler(request: Request, exc: PydanticValidationE
 async def api_exception_handler(request: Request, exc: APIException):
     """Handle custom API exceptions."""
     request_id = getattr(request.state, 'request_id', generate_uuid())
+    duration_ms = getattr(request.state, 'duration_ms', None)
     
-    if log_level == 'DEBUG':
-        logger.exception(f"API Exception: {exc.error_code} - {exc.message}")
-    else:
-        logger.error(f"API Exception: {exc.error_code} - {exc.message}")
+    # Record error metrics
+    endpoint = request.url.path
+    method = request.method
+    if duration_ms:
+        record_latency(endpoint, method, duration_ms)
+    record_error(endpoint, method, exc.error_code)
+    record_request_count(endpoint, method)
     
-    return JSONResponse(
+    # Log with structured context
+    logger.error(
+        "API Exception",
+        extra={
+            'error_code': exc.error_code,
+            'error_message': exc.message,
+            'status_code': exc.status_code,
+            'duration_ms': duration_ms,
+        }
+    )
+    
+    response = JSONResponse(
         status_code=exc.status_code,
         content={
             "error": {
@@ -211,6 +299,18 @@ async def api_exception_handler(request: Request, exc: APIException):
             }
         }
     )
+    
+    # Add rate limit headers for rate limit errors
+    if exc.error_code == "RATE_LIMIT_EXCEEDED":
+        import time
+        reset_timestamp = exc.details.get("reset_at", int(time.time()) + 60)
+        retry_after = exc.details.get("retry_after", reset_timestamp - int(time.time()))
+        response.headers["Retry-After"] = str(retry_after)
+        response.headers["X-RateLimit-Limit"] = str(exc.details.get("limit", 1000))
+        response.headers["X-RateLimit-Reset"] = str(reset_timestamp)
+        response.headers["X-RateLimit-Remaining"] = "0"
+    
+    return response
 
 
 @app.exception_handler(HTTPException)
@@ -235,11 +335,27 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def generic_exception_handler(request: Request, exc: Exception):
     """Handle unexpected exceptions."""
     request_id = getattr(request.state, 'request_id', generate_uuid())
+    duration_ms = getattr(request.state, 'duration_ms', None)
     
+    # Log with structured context
     if log_level == 'DEBUG':
-        logger.exception("Unexpected error occurred")
+        logger.exception(
+            "Unexpected error occurred",
+            extra={
+                'error_type': type(exc).__name__,
+                'error_message': str(exc),
+                'duration_ms': duration_ms,
+            }
+        )
     else:
-        logger.error(f"Unexpected error: {str(exc)}")
+        logger.error(
+            "Unexpected error occurred",
+            extra={
+                'error_type': type(exc).__name__,
+                'error_message': str(exc),
+                'duration_ms': duration_ms,
+            }
+        )
     
     return JSONResponse(
         status_code=500,
@@ -258,6 +374,9 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(health.router, prefix="/v1", tags=["health"])
 app.include_router(events.router, prefix="/v1", tags=["events"])
 app.include_router(inbox.router, prefix="/v1", tags=["inbox"])
+app.include_router(webhooks.router, prefix="/v1", tags=["webhooks"])
+app.include_router(api_keys.router, prefix="/v1", tags=["api-keys"])
+app.include_router(analytics.router, prefix="/v1", tags=["analytics"])
 
 # Explicit OPTIONS handler for CORS preflight (backup to CORS middleware)
 @app.options("/{full_path:path}")
@@ -281,9 +400,12 @@ async def startup_event():
     """Create DynamoDB tables on application startup."""
     try:
         create_tables()
-        logger.info("Application startup complete - tables created")
+        logger.info("Application startup complete - tables created", extra={'event': 'startup'})
     except Exception as e:
-        logger.error(f"Failed to create tables on startup: {e}")
+        logger.error(
+            "Failed to create tables on startup",
+            extra={'event': 'startup', 'error': str(e)}
+        )
         # Don't crash - tables might already exist
 
 

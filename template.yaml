@@ -24,8 +24,9 @@ Globals:
         DYNAMODB_TABLE_EVENTS: !Ref EventsTable
         DYNAMODB_TABLE_KEYS: !Ref ApiKeysTable
         DYNAMODB_TABLE_IDEMPOTENCY: !Ref IdempotencyTable
+        DYNAMODB_TABLE_RATE_LIMITS: !Ref RateLimitsTable
         DYNAMODB_TABLE_WEBHOOKS: !Ref WebhooksTable
-        WEBHOOK_DELIVERY_QUEUE_URL: !Ref WebhookDeliveryQueue
+        WEBHOOK_DELIVERY_QUEUE_URL: !GetAtt WebhookDeliveryQueue.QueueUrl
         AWS_REGION: !Ref AWS::Region
         AUTH_MODE: aws
         LOG_LEVEL: INFO
@@ -80,6 +81,13 @@ Resources:
               - dynamodb:GetItem
               - dynamodb:PutItem
             Resource: !GetAtt IdempotencyTable.Arn
+          # DynamoDB Rate Limits Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Resource: !GetAtt RateLimitsTable.Arn
           # DynamoDB Webhooks Table Permissions
           - Effect: Allow
             Action:
@@ -195,6 +203,29 @@ Resources:
       KeySchema:
         - AttributeName: idempotency_key
           KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      DeletionPolicy: Retain
+
+  # DynamoDB Rate Limits Table (Phase 8)
+  RateLimitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub triggers-api-rate-limits-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: api_key
+          AttributeType: S
+        - AttributeName: window_start
+          AttributeType: N
+      KeySchema:
+        - AttributeName: api_key
+          KeyType: HASH
+        - AttributeName: window_start
+          KeyType: RANGE
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
