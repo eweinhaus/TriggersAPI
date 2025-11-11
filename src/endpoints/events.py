@@ -225,6 +225,239 @@ async def create_event_endpoint(
     )
 
 
+@router.post(
+    "/events/bulk",
+    response_model=BulkEventResponse,
+    status_code=201,
+    tags=["events"],
+    summary="Create multiple events",
+    description="""
+    Create multiple events in a single request.
+    
+    **Features:**
+    - Create up to 25 events per request
+    - Idempotency support via `metadata.idempotency_key` for each event
+    - Partial success handling (returns both successful and failed items)
+    - Efficient batch processing using DynamoDB batch operations
+    
+    **Response:**
+    - `successful`: List of successfully created events
+    - `failed`: List of failed items with error details and index
+    - `request_id`: Request ID for correlation
+    """,
+    responses={
+        201: {
+            "description": "Bulk create completed (may have partial failures)",
+        },
+        400: {
+            "description": "Validation error - Invalid request payload",
+        },
+        401: {
+            "description": "Unauthorized - Invalid or missing API key",
+        }
+    }
+)
+async def bulk_create_events_endpoint(
+    bulk_request: BulkEventCreate,
+    request: Request = None,
+    api_key: str = Depends(get_api_key)
+):
+    """
+    Create multiple events in bulk.
+    
+    Requires API key authentication.
+    """
+    request_id = request.state.request_id
+    
+    # Prepare events for creation
+    events_to_create = []
+    for item in bulk_request.items:
+        event_id = generate_uuid()
+        created_at = get_iso_timestamp()
+        status = "pending"
+        ttl = int(time.time()) + (7 * 24 * 60 * 60)  # 7 days
+        
+        event = {
+            'event_id': event_id,
+            'created_at': created_at,
+            'source': item.source,
+            'event_type': item.event_type,
+            'payload': item.payload,
+            'status': status,
+            'ttl': ttl
+        }
+        
+        if item.metadata:
+            event['metadata'] = item.metadata
+        
+        events_to_create.append(event)
+    
+    # Create events in bulk
+    successful, failed = bulk_create_events(events_to_create, api_key)
+    
+    # Format successful events as EventResponse
+    successful_responses = []
+    for event in successful:
+        successful_responses.append({
+            'event_id': event['event_id'],
+            'created_at': event['created_at'],
+            'status': event['status'],
+            'message': 'Event ingested successfully'
+        })
+    
+    # Format failed items
+    failed_items = []
+    for fail in failed:
+        failed_items.append(BulkItemError(
+            index=fail['index'],
+            error=fail['error']
+        ))
+    
+    return BulkEventResponse(
+        successful=successful_responses,
+        failed=failed_items,
+        request_id=request_id
+    )
+
+
+@router.post(
+    "/events/bulk/ack",
+    response_model=BulkEventResponse,
+    tags=["events"],
+    summary="Acknowledge multiple events",
+    description="""
+    Acknowledge multiple events in a single request.
+    
+    **Features:**
+    - Acknowledge up to 25 events per request
+    - Partial success handling (returns both successful and failed items)
+    - Handles events that don't exist or are already acknowledged
+    
+    **Response:**
+    - `successful`: List of successfully acknowledged events
+    - `failed`: List of failed items with error details and index
+    - `request_id`: Request ID for correlation
+    """,
+    responses={
+        200: {
+            "description": "Bulk acknowledge completed (may have partial failures)",
+        },
+        400: {
+            "description": "Validation error - Invalid request payload",
+        },
+        401: {
+            "description": "Unauthorized - Invalid or missing API key",
+        }
+    }
+)
+async def bulk_acknowledge_events_endpoint(
+    bulk_request: BulkEventAcknowledge,
+    request: Request = None,
+    api_key: str = Depends(get_api_key)
+):
+    """
+    Acknowledge multiple events in bulk.
+    
+    Requires API key authentication.
+    """
+    request_id = request.state.request_id
+    
+    # Acknowledge events in bulk
+    successful, failed = bulk_acknowledge_events(bulk_request.event_ids, api_key)
+    
+    # Format successful acknowledgments
+    successful_responses = []
+    for event in successful:
+        successful_responses.append({
+            'event_id': event['event_id'],
+            'status': event['status'],
+            'acknowledged_at': event.get('acknowledged_at'),
+            'message': 'Event acknowledged successfully'
+        })
+    
+    # Format failed items
+    failed_items = []
+    for fail in failed:
+        failed_items.append(BulkItemError(
+            index=fail['index'],
+            error=fail['error']
+        ))
+    
+    return BulkEventResponse(
+        successful=successful_responses,
+        failed=failed_items,
+        request_id=request_id
+    )
+
+
+@router.delete(
+    "/events/bulk",
+    response_model=BulkEventResponse,
+    tags=["events"],
+    summary="Delete multiple events",
+    description="""
+    Delete multiple events in a single request.
+    
+    **Features:**
+    - Delete up to 25 events per request
+    - Partial success handling (returns both successful and failed items)
+    - Idempotent operation (events that don't exist are considered successful)
+    
+    **Response:**
+    - `successful`: List of successfully deleted event IDs
+    - `failed`: List of failed items with error details and index
+    - `request_id`: Request ID for correlation
+    """,
+    responses={
+        200: {
+            "description": "Bulk delete completed (may have partial failures)",
+        },
+        400: {
+            "description": "Validation error - Invalid request payload",
+        },
+        401: {
+            "description": "Unauthorized - Invalid or missing API key",
+        }
+    }
+)
+async def bulk_delete_events_endpoint(
+    bulk_request: BulkEventDelete,
+    request: Request = None,
+    api_key: str = Depends(get_api_key)
+):
+    """
+    Delete multiple events in bulk.
+    
+    Requires API key authentication.
+    """
+    request_id = request.state.request_id
+    
+    # Delete events in bulk
+    successful, failed = bulk_delete_events(bulk_request.event_ids, api_key)
+    
+    # Format successful deletions
+    successful_responses = []
+    for event_id in successful:
+        successful_responses.append({
+            'event_id': event_id,
+            'message': 'Event deleted successfully'
+        })
+    
+    # Format failed items
+    failed_items = []
+    for fail in failed:
+        failed_items.append(BulkItemError(
+            index=fail['index'],
+            error=fail['error']
+        ))
+    
+    return BulkEventResponse(
+        successful=successful_responses,
+        failed=failed_items,
+        request_id=request_id
+    )
+
+
 @router.get(
     "/events/{event_id}",
     response_model=EventDetailResponse,
@@ -655,240 +888,6 @@ async def delete_event_endpoint(
     return DeleteResponse(
         event_id=event_id_str,
         message="Event deleted successfully",
-        request_id=request_id
-    )
-
-
-@router.post(
-    "/events/bulk",
-    response_model=BulkEventResponse,
-    status_code=201,
-    tags=["events"],
-    summary="Create multiple events",
-    description="""
-    Create multiple events in a single request.
-    
-    **Features:**
-    - Create up to 25 events per request
-    - Idempotency support via `metadata.idempotency_key` for each event
-    - Partial success handling (returns both successful and failed items)
-    - Efficient batch processing using DynamoDB batch operations
-    
-    **Response:**
-    - `successful`: List of successfully created events
-    - `failed`: List of failed items with error details and index
-    - `request_id`: Request ID for correlation
-    """,
-    responses={
-        201: {
-            "description": "Bulk create completed (may have partial failures)",
-        },
-        400: {
-            "description": "Validation error - Invalid request payload",
-        },
-        401: {
-            "description": "Unauthorized - Invalid or missing API key",
-        }
-    }
-)
-async def bulk_create_events_endpoint(
-    bulk_request: BulkEventCreate,
-    request: Request = None,
-    api_key: str = Depends(get_api_key)
-):
-    """
-    Create multiple events in bulk.
-    
-    Requires API key authentication.
-    """
-    request_id = request.state.request_id
-    
-    # Prepare events for creation
-    events_to_create = []
-    for item in bulk_request.items:
-        event_id = generate_uuid()
-        created_at = get_iso_timestamp()
-        status = "pending"
-        ttl = int(time.time()) + (7 * 24 * 60 * 60)  # 7 days
-        
-        event = {
-            'event_id': event_id,
-            'created_at': created_at,
-            'source': item.source,
-            'event_type': item.event_type,
-            'payload': item.payload,
-            'status': status,
-            'ttl': ttl
-        }
-        
-        if item.metadata:
-            event['metadata'] = item.metadata
-        
-        events_to_create.append(event)
-    
-    # Create events in bulk
-    successful, failed = bulk_create_events(events_to_create, api_key)
-    
-    # Format successful events as EventResponse
-    successful_responses = []
-    for event in successful:
-        successful_responses.append({
-            'event_id': event['event_id'],
-            'created_at': event['created_at'],
-            'status': event['status'],
-            'message': 'Event ingested successfully'
-        })
-    
-    # Format failed items
-    failed_items = []
-    for fail in failed:
-        failed_items.append(BulkItemError(
-            index=fail['index'],
-            error=fail['error']
-        ))
-    
-    return BulkEventResponse(
-        successful=successful_responses,
-        failed=failed_items,
-        request_id=request_id
-    )
-
-
-@router.post(
-    "/events/bulk/ack",
-    response_model=BulkEventResponse,
-    tags=["events"],
-    summary="Acknowledge multiple events",
-    description="""
-    Acknowledge multiple events in a single request.
-    
-    **Features:**
-    - Acknowledge up to 25 events per request
-    - Partial success handling (returns both successful and failed items)
-    - Handles events that don't exist or are already acknowledged
-    
-    **Response:**
-    - `successful`: List of successfully acknowledged events
-    - `failed`: List of failed items with error details and index
-    - `request_id`: Request ID for correlation
-    """,
-    responses={
-        200: {
-            "description": "Bulk acknowledge completed (may have partial failures)",
-        },
-        400: {
-            "description": "Validation error - Invalid request payload",
-        },
-        401: {
-            "description": "Unauthorized - Invalid or missing API key",
-        }
-    }
-)
-async def bulk_acknowledge_events_endpoint(
-    bulk_request: BulkEventAcknowledge,
-    request: Request = None,
-    api_key: str = Depends(get_api_key)
-):
-    """
-    Acknowledge multiple events in bulk.
-    
-    Requires API key authentication.
-    """
-    request_id = request.state.request_id
-    
-    # Acknowledge events in bulk
-    successful, failed = bulk_acknowledge_events(bulk_request.event_ids, api_key)
-    
-    # Format successful acknowledgments
-    successful_responses = []
-    for event in successful:
-        successful_responses.append({
-            'event_id': event['event_id'],
-            'status': event['status'],
-            'acknowledged_at': event.get('acknowledged_at'),
-            'message': 'Event acknowledged successfully'
-        })
-    
-    # Format failed items
-    failed_items = []
-    for fail in failed:
-        failed_items.append(BulkItemError(
-            index=fail['index'],
-            error=fail['error']
-        ))
-    
-    return BulkEventResponse(
-        successful=successful_responses,
-        failed=failed_items,
-        request_id=request_id
-    )
-
-
-@router.delete(
-    "/events/bulk",
-    response_model=BulkEventResponse,
-    tags=["events"],
-    summary="Delete multiple events",
-    description="""
-    Delete multiple events in a single request.
-    
-    **Features:**
-    - Delete up to 25 events per request
-    - Partial success handling (returns both successful and failed items)
-    - Idempotent operation (events that don't exist are considered successful)
-    
-    **Response:**
-    - `successful`: List of successfully deleted event IDs
-    - `failed`: List of failed items with error details and index
-    - `request_id`: Request ID for correlation
-    """,
-    responses={
-        200: {
-            "description": "Bulk delete completed (may have partial failures)",
-        },
-        400: {
-            "description": "Validation error - Invalid request payload",
-        },
-        401: {
-            "description": "Unauthorized - Invalid or missing API key",
-        }
-    }
-)
-async def bulk_delete_events_endpoint(
-    bulk_request: BulkEventDelete,
-    request: Request = None,
-    api_key: str = Depends(get_api_key)
-):
-    """
-    Delete multiple events in bulk.
-    
-    Requires API key authentication.
-    Idempotent operation.
-    """
-    request_id = request.state.request_id
-    
-    # Delete events in bulk
-    successful, failed = bulk_delete_events(bulk_request.event_ids, api_key)
-    
-    # Format successful deletions
-    successful_responses = []
-    for event_id in successful:
-        successful_responses.append({
-            'event_id': event_id,
-            'message': 'Event deleted successfully'
-        })
-    
-    # Format failed items
-    failed_items = []
-    for fail in failed:
-        failed_items.append(BulkItemError(
-            index=fail['index'],
-            error=fail['error']
-        ))
-    
-    return BulkEventResponse(
-        successful=successful_responses,
-        failed=failed_items,
         request_id=request_id
     )
 

@@ -83,6 +83,15 @@ async def rate_limit_middleware(request: Request, call_next):
         response.headers["X-RateLimit-Remaining"] = str(remaining)
         response.headers["X-RateLimit-Reset"] = str(reset_timestamp)
         
+        # Ensure CORS exposes these headers (in case CORS middleware didn't set it)
+        if "Access-Control-Expose-Headers" not in response.headers:
+            response.headers["Access-Control-Expose-Headers"] = "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After"
+        else:
+            # Append if already exists
+            existing = response.headers.get("Access-Control-Expose-Headers", "")
+            if "X-RateLimit-Limit" not in existing:
+                response.headers["Access-Control-Expose-Headers"] = f"{existing}, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After"
+        
         return response
         
     except RateLimitExceededError:

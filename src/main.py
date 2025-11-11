@@ -124,6 +124,7 @@ app.add_middleware(
     allow_credentials=False,  # Must be False when using allow_origins=["*"]
     allow_methods=["GET", "POST", "DELETE", "OPTIONS", "PUT"],
     allow_headers=["Content-Type", "X-API-Key", "X-Request-ID", "X-Signature", "X-Signature-Timestamp", "X-Signature-Version"],
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"],  # Expose rate limit headers
     max_age=3600,
 )
 
@@ -389,6 +390,7 @@ async def options_handler(request: Request):
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID",
+            "Access-Control-Expose-Headers": "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After",
             "Access-Control-Max-Age": "3600",
         }
     )

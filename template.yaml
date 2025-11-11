@@ -129,6 +129,7 @@ Resources:
         AllowMethods: "'GET,POST,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,X-API-Key,X-Request-ID'"
         AllowOrigin: "'*'"
+        ExposeHeaders: "'X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Retry-After'"
         MaxAge: "'3600'"
       EndpointConfiguration:
         Type: REGIONAL

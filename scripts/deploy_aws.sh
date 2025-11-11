@@ -90,7 +90,9 @@ POLICY_DOC=$(cat <<EOF
                 "dynamodb:UpdateItem",
                 "dynamodb:DeleteItem",
                 "dynamodb:Query",
-                "dynamodb:Scan"
+                "dynamodb:Scan",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:BatchGetItem"
             ],
             "Resource": [
                 "arn:aws:dynamodb:${REGION}:${ACCOUNT_ID}:table/${EVENTS_TABLE}",
