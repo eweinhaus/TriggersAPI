@@ -1,13 +1,13 @@
 import React from 'react';
-import { Box, Container } from '@mui/material';
+import { Box } from '@mui/material';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
 const Layout = ({ children }) => {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
       <Header />
-      <Box sx={{ display: 'flex', flexGrow: 1 }}>
+      <Box sx={{ display: 'flex', flexGrow: 1, width: '100%', overflow: 'hidden' }}>
         <Sidebar />
         <Box
           component="main"
@@ -16,9 +16,12 @@ const Layout = ({ children }) => {
             p: 3,
             backgroundColor: 'background.default',
             minHeight: 'calc(100vh - 64px)',
+            width: '100%',
+            overflow: 'auto',
+            maxWidth: 'calc(100vw - 240px)', // Account for sidebar width
           }}
         >
-          <Container maxWidth="xl">{children}</Container>
+          {children}
         </Box>
       </Box>
     </Box>

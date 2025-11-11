@@ -4,7 +4,13 @@ A unified, real-time event ingestion system that enables external systems to sen
 
 ## Project Status
 
-**Current Phase:** Phase 6 - Frontend Dashboard ✅ Completed
+**Current Phase:** Phase 6 - Frontend Dashboard ✅ Completed  
+**Deployment Status:** ✅ Production Deployed
+
+### Production URLs
+- **Frontend Dashboard (S3):** http://triggers-api-frontend-971422717446.s3-website-us-east-1.amazonaws.com
+- **Frontend Dashboard (CloudFront):** https://d1xoc8cf19dtpg.cloudfront.net (deploying, 5-15 min)
+- **API Gateway:** https://4g0xk0jne0.execute-api.us-east-1.amazonaws.com/prod
 
 ## Quick Start
 

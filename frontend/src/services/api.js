@@ -1,8 +1,12 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 // Create Axios instance with base URL from environment variable
+// Vite uses import.meta.env instead of process.env
+const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || 'http://localhost:8080/v1';
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8080/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -18,7 +22,7 @@ api.interceptors.request.use(
     }
 
     // Generate request ID (UUID v4)
-    const requestId = crypto.randomUUID();
+    const requestId = uuidv4();
     config.headers['X-Request-ID'] = requestId;
 
     return config;

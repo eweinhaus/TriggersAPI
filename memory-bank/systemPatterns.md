@@ -5,9 +5,9 @@
 The system follows a serverless, event-driven architecture on AWS:
 
 ```
-API Gateway → Lambda (FastAPI) → DynamoDB
-                ↓
-            CloudWatch (Logs & Metrics)
+Frontend (S3 + CloudFront) → API Gateway → Lambda (FastAPI) → DynamoDB
+                                    ↓
+                            CloudWatch (Logs & Metrics)
 ```
 
 ### Phase 1 (Local Development)
@@ -17,16 +17,19 @@ FastAPI App → DynamoDB Local
 
 ### Phase 2+ (AWS Production)
 ```
+Frontend (S3 + CloudFront)
+    ↓
 API Gateway (REST API)
     ↓
 Lambda Function (FastAPI via Mangum)
     ↓
-DynamoDB (Events + API Keys tables)
+DynamoDB (Events + API Keys + Idempotency tables)
     ↓
 CloudWatch (Logs & Metrics)
 ```
 
 **Deployment Architecture:**
+- Frontend: S3 static hosting + CloudFront CDN (Phase 6)
 - API Gateway: Regional REST API with `/v1/{proxy+}` catch-all route
 - Lambda: Python 3.11 runtime, handler: `src.main.handler`
 - DynamoDB: On-demand billing, TTL enabled, GSI for inbox queries
@@ -371,5 +374,5 @@ tests/
 ---
 
 **Document Status:** Active  
-**Last Updated:** 2025-11-10 (Phase 4 completion)
+**Last Updated:** 2025-11-11 (Phase 6 completion - Frontend Dashboard)
 
