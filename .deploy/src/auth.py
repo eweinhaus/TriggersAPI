@@ -46,19 +46,24 @@ def validate_api_key(request: Request) -> str:
             
             item = response.get('Item')
             if not item:
+                logger.warning(f"API key not found in DynamoDB: {api_key[:10]}... (length: {len(api_key)})")
                 raise UnauthorizedError("Invalid API key")
             
             # Check if key is active
             is_active = item.get('is_active', True)
             if not is_active:
+                logger.warning(f"API key is inactive: {api_key[:10]}...")
                 raise UnauthorizedError("API key is inactive")
             
             return api_key
+        except UnauthorizedError:
+            # Re-raise UnauthorizedError as-is
+            raise
         except ClientError as e:
             logger.error(f"DynamoDB error during API key validation: {e}")
             raise UnauthorizedError("Error validating API key")
         except Exception as e:
-            logger.error(f"Unexpected error during API key validation: {e}")
+            logger.error(f"Unexpected error during API key validation: {e}", exc_info=True)
             raise UnauthorizedError("Error validating API key")
     else:
         raise UnauthorizedError(f"Unsupported AUTH_MODE: {auth_mode}")

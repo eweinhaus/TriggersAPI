@@ -17,6 +17,7 @@ Globals:
         STAGE: !Ref Stage
         DYNAMODB_TABLE_EVENTS: !Ref EventsTable
         DYNAMODB_TABLE_KEYS: !Ref ApiKeysTable
+        DYNAMODB_TABLE_IDEMPOTENCY: !Ref IdempotencyTable
         AWS_REGION: !Ref AWS::Region
         AUTH_MODE: aws
         LOG_LEVEL: INFO
@@ -25,11 +26,12 @@ Resources:
   # Lambda Function
   TriggersApiFunction:
     Type: AWS::Serverless::Function
-    Runtime: python3.11
-    Handler: src.main.handler
-    CodeUri: .
-    Description: Zapier Triggers API Lambda function
-    Policies:
+    Properties:
+      Runtime: python3.11
+      Handler: src.main.handler
+      CodeUri: .
+      Description: Zapier Triggers API Lambda function
+      Policies:
       - Version: '2012-10-17'
         Statement:
           # DynamoDB Events Table Permissions
@@ -39,6 +41,7 @@ Resources:
               - dynamodb:GetItem
               - dynamodb:UpdateItem
               - dynamodb:DeleteItem
+              - dynamodb:Scan
             Resource: !GetAtt EventsTable.Arn
           # DynamoDB Events Table GSI Query Permissions
           - Effect: Allow
@@ -52,6 +55,12 @@ Resources:
             Action:
               - dynamodb:GetItem
             Resource: !GetAtt ApiKeysTable.Arn
+          # DynamoDB Idempotency Table Permissions
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+            Resource: !GetAtt IdempotencyTable.Arn
           # CloudWatch Logs Permissions
           - Effect: Allow
             Action:
@@ -59,13 +68,13 @@ Resources:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/triggers-api-${Stage}:*'
-    Events:
-      ApiEvent:
-        Type: Api
-        Properties:
-          RestApiId: !Ref TriggersApi
-          Path: /{proxy+}
-          Method: ANY
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TriggersApi
+            Path: /{proxy+}
+            Method: ANY
 
   # API Gateway
   TriggersApi:
@@ -126,6 +135,25 @@ Resources:
       KeySchema:
         - AttributeName: api_key
           KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      DeletionPolicy: Retain
+
+  # DynamoDB Idempotency Table
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub triggers-api-idempotency-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: idempotency_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: idempotency_key
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       SSESpecification:
         SSEEnabled: true
       DeletionPolicy: Retain

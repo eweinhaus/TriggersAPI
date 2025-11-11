@@ -230,13 +230,31 @@ def get_event(event_id: str, created_at: Optional[str] = None) -> Optional[dict]
             return response.get('Item')
         else:
             # Scan with filter (acceptable for MVP low volume)
-            response = table.scan(
-                FilterExpression='event_id = :event_id',
-                ExpressionAttributeValues={':event_id': event_id},
-                Limit=1
-            )
-            items = response.get('Items', [])
-            return items[0] if items else None
+            # Use ConsistentRead to ensure we find recently written items
+            # Paginate through scan results until we find the event or scan entire table
+            scan_kwargs = {
+                'FilterExpression': 'event_id = :event_id',
+                'ExpressionAttributeValues': {':event_id': event_id},
+                'ConsistentRead': True,
+                'Limit': 100  # Scan 100 items at a time
+            }
+            
+            while True:
+                response = table.scan(**scan_kwargs)
+                items = response.get('Items', [])
+                
+                # If we found the event, return it
+                if items:
+                    return items[0]
+                
+                # Check if there are more items to scan
+                last_evaluated_key = response.get('LastEvaluatedKey')
+                if not last_evaluated_key:
+                    # No more items to scan
+                    return None
+                
+                # Continue scanning from where we left off
+                scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
     except ClientError:
         return None
 
