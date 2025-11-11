@@ -4,7 +4,7 @@ A unified, real-time event ingestion system that enables external systems to sen
 
 ## Project Status
 
-**Current Phase:** Phase 5 - Documentation & Example Clients ✅ Completed
+**Current Phase:** Phase 6 - Frontend Dashboard ✅ Completed
 
 ## Quick Start
 
@@ -55,6 +55,29 @@ curl -X POST http://localhost:8080/v1/events \
 ```
 
 See [cURL Examples](docs/CURL_EXAMPLES.md) for comprehensive examples.
+
+### Option 4: Using Web Dashboard
+
+A React-based web dashboard is available for testing and managing events:
+
+```bash
+# Start frontend development server
+cd frontend
+npm install
+npm start
+```
+
+The dashboard will be available at `http://localhost:3000`
+
+**Features:**
+- Send events via user-friendly form
+- View inbox with pagination and filtering
+- View event details with JSON viewer
+- Acknowledge and delete events
+- View statistics with charts
+- API key management
+
+See [Frontend README](frontend/README.md) for details.
 
 ### Interactive API Documentation
 
