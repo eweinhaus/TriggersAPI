@@ -319,6 +319,27 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle FastAPI HTTP exceptions."""
     request_id = getattr(request.state, 'request_id', generate_uuid())
     
+    # Handle 405 Method Not Allowed with more details
+    if exc.status_code == 405:
+        # Get allowed methods from the exception if available
+        allowed_methods = getattr(exc, 'headers', {}).get('Allow', 'GET, POST, PUT, DELETE, OPTIONS')
+        return JSONResponse(
+            status_code=405,
+            content={
+                "error": {
+                    "code": "METHOD_NOT_ALLOWED",
+                    "message": f"Method {request.method} is not allowed for this endpoint",
+                    "details": {
+                        "method": request.method,
+                        "path": request.url.path,
+                        "allowed_methods": allowed_methods.split(', ') if isinstance(allowed_methods, str) else allowed_methods
+                    },
+                    "request_id": request_id
+                }
+            },
+            headers={"Allow": allowed_methods}
+        )
+    
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -371,15 +392,9 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Include routers with /v1 prefix
-app.include_router(health.router, prefix="/v1", tags=["health"])
-app.include_router(events.router, prefix="/v1", tags=["events"])
-app.include_router(inbox.router, prefix="/v1", tags=["inbox"])
-app.include_router(webhooks.router, prefix="/v1", tags=["webhooks"])
-app.include_router(api_keys.router, prefix="/v1", tags=["api-keys"])
-app.include_router(analytics.router, prefix="/v1", tags=["analytics"])
-
 # Explicit OPTIONS handler for CORS preflight (backup to CORS middleware)
+# Note: This should match the CORS middleware configuration
+# Placed before routers to ensure it doesn't interfere with route matching
 @app.options("/{full_path:path}")
 async def options_handler(request: Request):
     """Handle OPTIONS requests for CORS preflight."""
@@ -388,12 +403,20 @@ async def options_handler(request: Request):
         status_code=200,
         headers={
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID",
+            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS, PUT",
+            "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID, X-Signature, X-Signature-Timestamp, X-Signature-Version",
             "Access-Control-Expose-Headers": "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After",
             "Access-Control-Max-Age": "3600",
         }
     )
+
+# Include routers with /v1 prefix
+app.include_router(health.router, prefix="/v1", tags=["health"])
+app.include_router(events.router, prefix="/v1", tags=["events"])
+app.include_router(inbox.router, prefix="/v1", tags=["inbox"])
+app.include_router(webhooks.router, prefix="/v1", tags=["webhooks"])
+app.include_router(api_keys.router, prefix="/v1", tags=["api-keys"])
+app.include_router(analytics.router, prefix="/v1", tags=["analytics"])
 
 
 # Startup event

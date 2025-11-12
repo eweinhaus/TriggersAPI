@@ -22,7 +22,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import JsonView from '@uiw/react-json-view';
 import { useEvent, useAcknowledgeEvent, useDeleteEvent } from '../../hooks/useEvents';
 import { useNotification } from '../../contexts/NotificationContext';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, capitalize } from '../../utils/formatters';
 
 const EventDetails = () => {
   const { eventId } = useParams();
@@ -122,7 +122,7 @@ const EventDetails = () => {
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
               <Chip
-                label={event.status}
+                label={capitalize(event.status)}
                 color={event.status === 'pending' ? 'warning' : 'success'}
                 sx={{ fontWeight: 500 }}
               />

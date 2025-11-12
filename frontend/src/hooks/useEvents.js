@@ -28,7 +28,7 @@ export const useCreateEvent = () => {
  */
 export const useInbox = (params = {}) => {
   return useQuery({
-    queryKey: ['inbox', params.limit, params.cursor, params.source, params.event_type],
+    queryKey: ['inbox', params.limit, params.cursor, params.source, params.event_type, params.priority],
     queryFn: () => getInbox(params),
     refetchInterval: 30000, // Auto-refresh every 30 seconds
     refetchOnWindowFocus: false,

@@ -99,6 +99,16 @@ const Header = () => {
                 },
                 '&.Mui-focused': {
                   backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    borderWidth: '1px',
+                  },
+                },
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
                 },
               },
               '& .MuiInputLabel-root': {

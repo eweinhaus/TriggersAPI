@@ -5,11 +5,17 @@ import { v4 as uuidv4 } from 'uuid';
 // Vite uses import.meta.env instead of process.env
 const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || 'http://localhost:8080/v1';
 
+// Log API URL in development for debugging
+if (import.meta.env.DEV) {
+  console.log('API Base URL:', API_BASE_URL);
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 });
 
 // Request interceptor: Add API key and request ID
@@ -51,10 +57,41 @@ api.interceptors.response.use(
       };
     } else if (error.request) {
       // Request made but no response
+      let errorMessage = 'Network error: Unable to reach the server';
+      let errorDetails = {};
+      
+      // Provide more specific error messages
+      if (error.code === 'ECONNREFUSED') {
+        errorMessage = `Connection refused. Is the API server running at ${API_BASE_URL}?`;
+        errorDetails = { 
+          apiUrl: API_BASE_URL,
+          suggestion: 'Make sure the backend server is running on the configured port'
+        };
+      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNABORTED') {
+        errorMessage = `Cannot connect to ${API_BASE_URL}. Check your network connection and API URL configuration.`;
+        errorDetails = { apiUrl: API_BASE_URL };
+      } else if (error.message.includes('timeout')) {
+        errorMessage = `Request timeout. The server at ${API_BASE_URL} did not respond in time.`;
+        errorDetails = { apiUrl: API_BASE_URL };
+      } else if (error.message) {
+        errorMessage = `Network error: ${error.message}`;
+        errorDetails = { apiUrl: API_BASE_URL, originalError: error.message };
+      }
+      
+      // Log full error in development
+      if (import.meta.env.DEV) {
+        console.error('Network error details:', {
+          error,
+          apiUrl: API_BASE_URL,
+          requestUrl: error.config?.url,
+          fullUrl: error.config ? `${error.config.baseURL}${error.config.url}` : 'unknown'
+        });
+      }
+      
       error.formattedError = {
         code: 'NETWORK_ERROR',
-        message: 'Network error: Unable to reach the server',
-        details: {},
+        message: errorMessage,
+        details: errorDetails,
         requestId: null,
         status: null,
       };

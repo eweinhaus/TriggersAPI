@@ -50,3 +50,13 @@ export const truncateEventId = (eventId) => {
   return eventId.substring(0, 8) + '...';
 };
 
+/**
+ * Capitalize first letter of a string
+ * @param {string} str - String to capitalize
+ * @returns {string} String with first letter capitalized
+ */
+export const capitalize = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+

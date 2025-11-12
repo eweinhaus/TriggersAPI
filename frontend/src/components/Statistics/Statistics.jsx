@@ -13,14 +13,49 @@ import {
   Button,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { format, subHours, subDays, subWeeks } from 'date-fns';
+import { subHours, subDays, subWeeks } from 'date-fns';
 import { getInbox } from '../../services/api';
+
+// Color palettes for pie charts - diverse colors across the spectrum
+const SOURCE_COLORS = [
+  '#1976d2', // Blue
+  '#4caf50', // Green
+  '#ff9800', // Orange
+  '#9c27b0', // Purple
+  '#f44336', // Red
+  '#00bcd4', // Cyan
+  '#ffeb3b', // Yellow
+  '#795548', // Brown
+  '#607d8b', // Blue Grey
+  '#e91e63', // Pink
+  '#3f51b5', // Indigo
+  '#009688', // Teal
+  '#ff5722', // Deep Orange
+  '#673ab7', // Deep Purple
+  '#8bc34a', // Light Green
+];
+
+const TYPE_COLORS = [
+  '#dc004e', // Red
+  '#2196f3', // Blue
+  '#4caf50', // Green
+  '#ff9800', // Orange
+  '#9c27b0', // Purple
+  '#00bcd4', // Cyan
+  '#ffeb3b', // Yellow
+  '#795548', // Brown
+  '#607d8b', // Blue Grey
+  '#e91e63', // Pink
+  '#3f51b5', // Indigo
+  '#009688', // Teal
+  '#ff5722', // Deep Orange
+  '#673ab7', // Deep Purple
+  '#8bc34a', // Light Green
+];
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
   Tooltip,
   Legend,
   ResponsiveContainer,
@@ -103,8 +138,8 @@ const Statistics = () => {
       bySource[event.source] = (bySource[event.source] || 0) + 1;
     });
     const sourceData = Object.entries(bySource)
-      .map(([source, count]) => ({ source, count }))
-      .sort((a, b) => b.count - a.count)
+      .map(([source, count]) => ({ name: source, value: count }))
+      .sort((a, b) => b.value - a.value)
       .slice(0, 10); // Top 10
 
     // Events by type
@@ -113,8 +148,8 @@ const Statistics = () => {
       byType[event.event_type] = (byType[event.event_type] || 0) + 1;
     });
     const typeData = Object.entries(byType)
-      .map(([type, count]) => ({ type, count }))
-      .sort((a, b) => b.count - a.count)
+      .map(([type, count]) => ({ name: type, value: count }))
+      .sort((a, b) => b.value - a.value)
       .slice(0, 10); // Top 10
 
     return {
@@ -195,49 +230,69 @@ const Statistics = () => {
         </Grid>
       </Grid>
 
-      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0, display: 'flex', flexDirection: 'row', gap: 2 }}>
         {stats.sourceData.length > 0 && (
-          <Paper sx={{ p: 3, flexShrink: 0 }}>
+          <Paper sx={{ p: 3, flexShrink: 0, flex: '1 1 50%', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Events by Source
             </Typography>
-            <Box sx={{ height: 280, width: '100%' }}>
+            <Box sx={{ flex: 1, width: '100%', minHeight: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.sourceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                  <XAxis dataKey="source" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
+                <PieChart>
+                  <Pie
+                    data={stats.sourceData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => (percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : '')}
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {stats.sourceData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={SOURCE_COLORS[index % SOURCE_COLORS.length]} />
+                    ))}
+                  </Pie>
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="count" fill="#1976d2" />
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
             </Box>
           </Paper>
         )}
 
         {stats.typeData.length > 0 && (
-          <Paper sx={{ p: 3, flexShrink: 0 }}>
+          <Paper sx={{ p: 3, flexShrink: 0, flex: '1 1 50%', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Events by Type
             </Typography>
-            <Box sx={{ height: 280, width: '100%' }}>
+            <Box sx={{ flex: 1, width: '100%', minHeight: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.typeData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                  <XAxis dataKey="type" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
+                <PieChart>
+                  <Pie
+                    data={stats.typeData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => (percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : '')}
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {stats.typeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={TYPE_COLORS[index % TYPE_COLORS.length]} />
+                    ))}
+                  </Pie>
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="count" fill="#dc004e" />
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
             </Box>
           </Paper>
         )}
 
         {stats.total === 0 && (
-          <Alert severity="info">No events found for the selected time range</Alert>
+          <Alert severity="info" sx={{ flex: '1 1 100%' }}>No events found for the selected time range</Alert>
         )}
       </Box>
     </Box>
