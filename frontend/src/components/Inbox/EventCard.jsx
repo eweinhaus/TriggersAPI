@@ -34,11 +34,11 @@ const EventCard = ({ event, onAcknowledge, onDelete }) => {
   const truncatedPayload = truncate(payloadPreview, 100);
 
   return (
-    <Card sx={{ mb: 2, '&:hover': { boxShadow: 4 } }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
+    <Card sx={{ mb: 2, transition: 'box-shadow 0.2s ease-in-out' }}>
+      <CardContent sx={{ pb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
           <Box>
-            <Typography variant="h6" component="div">
+            <Typography variant="h6" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
               {truncateEventId(event.event_id)}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -49,14 +49,15 @@ const EventCard = ({ event, onAcknowledge, onDelete }) => {
             label={event.status}
             color={event.status === 'pending' ? 'warning' : 'success'}
             size="small"
+            sx={{ fontWeight: 500 }}
           />
         </Box>
 
         <Box sx={{ mt: 2 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
             <strong>Source:</strong> {event.source}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
             <strong>Type:</strong> {event.event_type}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -64,7 +65,7 @@ const EventCard = ({ event, onAcknowledge, onDelete }) => {
           </Typography>
         </Box>
       </CardContent>
-      <CardActions>
+      <CardActions sx={{ pt: 0, pb: 2, px: 2 }}>
         <Button size="small" onClick={handleViewDetails}>
           View Details
         </Button>

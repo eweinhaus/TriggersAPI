@@ -38,3 +38,4 @@ echo "4. Test health endpoint: curl http://localhost:8080/v1/health"
 echo ""
 echo "Note: Tables will be created automatically when the FastAPI app starts."
 
+

@@ -172,3 +172,4 @@ export SNS_TOPIC_ARN="arn:aws:sns:us-east-1:123456789012:alerts"
 4. **Dimension Filtering**: Use dimensions to drill down into specific issues
 5. **Cost Management**: Monitor metric usage and optimize if needed
 
+

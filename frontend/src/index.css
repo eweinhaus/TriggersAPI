@@ -20,11 +20,15 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
+  overflow: hidden; /* Prevent page-level scrolling */
+  background-color: #f8f9fa; /* Off-white background */
 }
 
 #root {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh; /* Fixed viewport height */
   margin: 0;
   padding: 0;
+  overflow: hidden; /* Prevent root scrolling */
+  background-color: #f8f9fa; /* Off-white background */
 }

@@ -171,3 +171,4 @@ class TestInternalError:
         assert exc.message == "Database connection failed"
         assert exc.details == {"error": "timeout"}
 
+

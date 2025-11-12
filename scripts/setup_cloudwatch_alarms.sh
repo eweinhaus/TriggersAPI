@@ -80,3 +80,4 @@ create_alarm "TriggersAPI-HighErrorRate" "ApiErrorRate" 0.1 "GreaterThanThreshol
 echo "All alarms created successfully"
 echo "View alarms at: https://console.aws.amazon.com/cloudwatch/home?region=$REGION#alarmsV2:"
 
+

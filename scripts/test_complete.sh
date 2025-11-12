@@ -87,3 +87,4 @@ echo "2. Start API server for E2E tests: ./scripts/start_test_server.sh"
 echo "3. Run E2E tests: pytest tests/e2e/ -v"
 echo "4. Run Playwright tests: pytest tests/playwright/ -v (requires running server)"
 
+

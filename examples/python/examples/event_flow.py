@@ -78,3 +78,4 @@ except TriggersAPIError as e:
     if e.details:
         print(f"   Details: {e.details}")
 
+

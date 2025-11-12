@@ -135,9 +135,9 @@ const Statistics = () => {
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5">Statistics</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexShrink: 0, pt: 1 }}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>Statistics</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Time Range</InputLabel>
@@ -162,76 +162,84 @@ const Statistics = () => {
         </Box>
       </Box>
 
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: 2, flexShrink: 0 }}>
         <Grid item xs={12} sm={4}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h4">{stats.total}</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h3" sx={{ fontWeight: 700, mb: 1 }}>
+              {stats.total}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
               Total Events
             </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} sm={4}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h4" color="warning.main">
+            <Typography variant="h3" color="warning.main" sx={{ fontWeight: 700, mb: 1 }}>
               {stats.pending}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
               Pending Events
             </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} sm={4}>
           <Paper sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h4" color="success.main">
+            <Typography variant="h3" color="success.main" sx={{ fontWeight: 700, mb: 1 }}>
               {stats.acknowledged}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
               Acknowledged Events
             </Typography>
           </Paper>
         </Grid>
       </Grid>
 
-      {stats.sourceData.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Events by Source
-          </Typography>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stats.sourceData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="source" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#1976d2" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Paper>
-      )}
+      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {stats.sourceData.length > 0 && (
+          <Paper sx={{ p: 3, flexShrink: 0 }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Events by Source
+            </Typography>
+            <Box sx={{ height: 280, width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.sourceData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                  <XAxis dataKey="source" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="count" fill="#1976d2" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </Paper>
+        )}
 
-      {stats.typeData.length > 0 && (
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Events by Type
-          </Typography>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stats.typeData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="type" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#dc004e" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Paper>
-      )}
+        {stats.typeData.length > 0 && (
+          <Paper sx={{ p: 3, flexShrink: 0 }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Events by Type
+            </Typography>
+            <Box sx={{ height: 280, width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.typeData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+                  <XAxis dataKey="type" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="count" fill="#dc004e" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </Paper>
+        )}
 
-      {stats.total === 0 && (
-        <Alert severity="info">No events found for the selected time range</Alert>
-      )}
+        {stats.total === 0 && (
+          <Alert severity="info">No events found for the selected time range</Alert>
+        )}
+      </Box>
     </Box>
   );
 };

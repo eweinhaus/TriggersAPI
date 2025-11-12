@@ -5,24 +5,27 @@ import Sidebar from './Sidebar';
 
 const Layout = ({ children }) => {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
       <Header />
-      <Box sx={{ display: 'flex', flexGrow: 1, width: '100%', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', flex: 1, width: '100%', overflow: 'hidden', minHeight: 0 }}>
         <Sidebar />
         <Box
           component="main"
           sx={{
-            flexGrow: 1,
+            flex: 1,
             p: { xs: 2, sm: 3 },
             backgroundColor: 'background.default',
-            minHeight: 'calc(100vh - 64px)',
+            height: '100%',
             width: '100%',
-            overflow: 'auto',
+            overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
+            minHeight: 0,
           }}
         >
-          <Box sx={{ width: '100%', maxWidth: '100%' }}>{children}</Box>
+          <Box sx={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {children}
+          </Box>
         </Box>
       </Box>
     </Box>

@@ -80,3 +80,4 @@ def map_status_code_to_error(status_code: int) -> type[TriggersAPIError]:
     }
     return mapping.get(status_code, TriggersAPIError)
 
+

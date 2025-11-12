@@ -32,3 +32,4 @@ docker run --rm --platform linux/amd64 \
 echo "✅ Lambda package built: lambda-deployment.zip"
 echo "   Size: $(ls -lh lambda-deployment.zip | awk '{print $5}')"
 
+

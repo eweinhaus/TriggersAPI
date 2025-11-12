@@ -160,91 +160,139 @@ const EventForm = () => {
   };
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Send Event
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Create a new event to send to the API
-      </Typography>
-
-      <Box component="form" onSubmit={handleSubmit}>
-        <TextField
-          fullWidth
-          label="Source"
-          value={formData.source}
-          onChange={handleChange('source')}
-          required
-          error={!!errors.source}
-          helperText={errors.source}
-          margin="normal"
-        />
-
-        <TextField
-          fullWidth
-          label="Event Type"
-          value={formData.event_type}
-          onChange={handleChange('event_type')}
-          required
-          error={!!errors.event_type}
-          helperText={errors.event_type}
-          margin="normal"
-        />
-
-        <TextField
-          fullWidth
-          label="Payload (JSON)"
-          value={formData.payload}
-          onChange={handleChange('payload')}
-          required
-          error={!!payloadError}
-          helperText={payloadError || 'Enter a valid JSON object'}
-          margin="normal"
-          multiline
-          rows={8}
-          sx={{
-            '& .MuiInputBase-input': {
-              fontFamily: 'monospace',
-              fontSize: '0.875rem',
-            },
-          }}
-        />
-
-        <TextField
-          fullWidth
-          label="Correlation ID (Optional)"
-          value={formData.metadata.correlation_id}
-          onChange={handleChange('correlation_id')}
-          margin="normal"
-        />
-
-        <FormControl fullWidth margin="normal">
-          <InputLabel>Priority (Optional)</InputLabel>
-          <Select
-            value={formData.metadata.priority}
-            onChange={handleChange('priority')}
-            label="Priority (Optional)"
-          >
-            <MenuItem value="low">Low</MenuItem>
-            <MenuItem value="normal">Normal</MenuItem>
-            <MenuItem value="high">High</MenuItem>
-          </Select>
-        </FormControl>
-
-        <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={createEventMutation.isPending}
-          >
-            {createEventMutation.isPending ? 'Creating...' : 'Create Event'}
-          </Button>
-          <Button variant="outlined" onClick={handleClear}>
-            Clear
-          </Button>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', alignItems: 'center' }}>
+      <Paper sx={{ 
+        pt: 2,
+        px: 2,
+        pb: 1.5,
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: '100%', 
+        overflow: 'hidden',
+        maxWidth: 800,
+        width: '100%',
+      }}>
+        <Box sx={{ flexShrink: 0, mb: 1.5 }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 0.5 }}>
+            Send Event
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+            Create a new event to send to the API
+          </Typography>
         </Box>
-      </Box>
-    </Paper>
+
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            flex: 1,
+            overflow: 'auto',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            pt: 1,
+            position: 'relative',
+          }}
+        >
+          <TextField
+            fullWidth
+            label="Source"
+            value={formData.source}
+            onChange={handleChange('source')}
+            required
+            error={!!errors.source}
+            helperText={errors.source}
+            size="small"
+            sx={{
+              mb: 1.5,
+              '& .MuiInputBase-input': {
+                fontSize: '0.9375rem',
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Event Type"
+            value={formData.event_type}
+            onChange={handleChange('event_type')}
+            required
+            error={!!errors.event_type}
+            helperText={errors.event_type}
+            size="small"
+            sx={{
+              mb: 1.5,
+              '& .MuiInputBase-input': {
+                fontSize: '0.9375rem',
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Payload (JSON)"
+            value={formData.payload}
+            onChange={handleChange('payload')}
+            required
+            error={!!payloadError}
+            helperText={payloadError || 'Enter a valid JSON object'}
+            multiline
+            rows={5}
+            size="small"
+            sx={{
+              mb: 1.5,
+              '& .MuiInputBase-input': {
+                fontFamily: 'monospace',
+                fontSize: '0.875rem',
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Correlation ID (Optional)"
+            value={formData.metadata.correlation_id}
+            onChange={handleChange('correlation_id')}
+            size="small"
+            sx={{
+              mb: 1.5,
+              '& .MuiInputBase-input': {
+                fontSize: '0.9375rem',
+              },
+            }}
+          />
+
+          <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+            <InputLabel>Priority (Optional)</InputLabel>
+            <Select
+              value={formData.metadata.priority}
+              onChange={handleChange('priority')}
+              label="Priority (Optional)"
+              sx={{
+                fontSize: '0.9375rem',
+              }}
+            >
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="normal">Normal</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+            </Select>
+          </FormControl>
+
+          <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 0, flexShrink: 0 }}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={createEventMutation.isPending}
+            >
+              {createEventMutation.isPending ? 'Creating...' : 'Create Event'}
+            </Button>
+            <Button variant="outlined" onClick={handleClear}>
+              Clear
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

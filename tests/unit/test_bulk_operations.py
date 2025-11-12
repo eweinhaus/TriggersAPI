@@ -157,3 +157,4 @@ class TestBulkDatabaseFunctions:
                     assert isinstance(successful, list)
                     assert isinstance(failed, list)
 
+

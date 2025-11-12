@@ -18,6 +18,7 @@ const Header = () => {
   const { apiKey, setApiKey, clearApiKey } = useApiKey();
   const [validationStatus, setValidationStatus] = useState('idle'); // 'idle', 'checking', 'valid', 'invalid'
   const [debounceTimer, setDebounceTimer] = useState(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Validate API key when it changes (debounced)
   useEffect(() => {
@@ -73,17 +74,20 @@ const Header = () => {
   };
 
   return (
-    <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-      <Toolbar sx={{ width: '100%', px: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 3, fontWeight: 600 }}>
+    <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, height: 64 }}>
+      <Toolbar sx={{ width: '100%', px: { xs: 2, sm: 3 }, height: 64, minHeight: '64px !important', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 0, fontWeight: 600 }}>
           Triggers API
         </Typography>
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <TextField
-            label="API Key"
+            label={isFocused || apiKey ? '' : 'API Key'}
             type="password"
             value={apiKey}
             onChange={handleApiKeyChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder={isFocused || apiKey ? 'API Key' : ''}
             size="small"
             sx={{
               minWidth: { xs: 200, sm: 300 },
@@ -99,9 +103,14 @@ const Header = () => {
               },
               '& .MuiInputLabel-root': {
                 color: 'rgba(255, 255, 255, 0.7)',
+                display: (isFocused || apiKey) ? 'none' : 'block',
               },
               '& .MuiInputBase-input': {
                 color: 'white',
+                '&::placeholder': {
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  opacity: 1,
+                },
               },
             }}
             InputProps={{

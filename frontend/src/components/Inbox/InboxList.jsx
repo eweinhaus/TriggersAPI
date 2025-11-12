@@ -105,9 +105,9 @@ const InboxList = () => {
   const hasPrevious = cursor !== null;
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5">Inbox</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexShrink: 0 }}>
+        <Typography variant="h5" sx={{ fontWeight: 600 }}>Inbox</Typography>
         <Button
           variant="outlined"
           startIcon={<RefreshIcon />}
@@ -118,7 +118,7 @@ const InboxList = () => {
         </Button>
       </Box>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Paper sx={{ p: 2, mb: 2, flexShrink: 0 }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <TextField
             label="Filter by Source"
@@ -162,36 +162,40 @@ const InboxList = () => {
         </Box>
       </Paper>
 
-      {events.length === 0 ? (
-        <Alert severity="info">No events found</Alert>
-      ) : (
-        <>
-          {events.map((event) => (
-            <EventCard
-              key={event.event_id}
-              event={event}
-              onAcknowledge={handleAcknowledge}
-              onDelete={handleDelete}
-            />
-          ))}
+      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+        {events.length === 0 ? (
+          <Alert severity="info">No events found</Alert>
+        ) : (
+          <>
+            {events.map((event) => (
+              <EventCard
+                key={event.event_id}
+                event={event}
+                onAcknowledge={handleAcknowledge}
+                onDelete={handleDelete}
+              />
+            ))}
+          </>
+        )}
+      </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button
-              variant="outlined"
-              onClick={handlePrevious}
-              disabled={!hasPrevious || isLoading}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleNext}
-              disabled={!hasNext || isLoading}
-            >
-              Next
-            </Button>
-          </Box>
-        </>
+      {events.length > 0 && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2, pt: 2, flexShrink: 0, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button
+            variant="outlined"
+            onClick={handlePrevious}
+            disabled={!hasPrevious || isLoading}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleNext}
+            disabled={!hasNext || isLoading}
+          >
+            Next
+          </Button>
+        </Box>
       )}
     </Box>
   );

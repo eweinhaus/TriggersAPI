@@ -124,9 +124,9 @@ const WebhookList = () => {
   const webhooks = data?.data?.webhooks || [];
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexShrink: 0 }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
           Webhooks
         </Typography>
         <Button
@@ -139,7 +139,7 @@ const WebhookList = () => {
       </Box>
 
       {webhooks.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
+        <Paper sx={{ p: 4, textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <Typography variant="body1" color="text.secondary" gutterBottom>
             No webhooks found
           </Typography>
@@ -153,15 +153,15 @@ const WebhookList = () => {
           </Button>
         </Paper>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+          <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>URL</TableCell>
-                <TableCell>Events</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>URL</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Events</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Created</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

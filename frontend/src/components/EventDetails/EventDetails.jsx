@@ -105,25 +105,26 @@ const EventDetails = () => {
   const event = data.data;
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Button
         startIcon={<ArrowBackIcon />}
         onClick={() => navigate('/inbox')}
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, flexShrink: 0 }}
       >
         Back to Inbox
       </Button>
 
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 3 }}>
+      <Paper sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 3, flexShrink: 0 }}>
           <Box>
-            <Typography variant="h5" gutterBottom>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
               Event Details
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
               <Chip
                 label={event.status}
                 color={event.status === 'pending' ? 'warning' : 'success'}
+                sx={{ fontWeight: 500 }}
               />
               <Typography variant="body2" color="text.secondary">
                 Created: {formatDate(event.created_at)}
@@ -153,74 +154,76 @@ const EventDetails = () => {
           </Box>
         </Box>
 
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" color="text.secondary">
-            Event ID
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
-              {event.event_id}
-            </Typography>
-            <IconButton
-              size="small"
-              onClick={() => handleCopy(event.event_id, 'eventId')}
-              color={copied.eventId ? 'success' : 'default'}
-            >
-              <ContentCopyIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" color="text.secondary">
-            Source
-          </Typography>
-          <Typography variant="body1">{event.source}</Typography>
-        </Box>
-
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" color="text.secondary">
-            Event Type
-          </Typography>
-          <Typography variant="body1">{event.event_type}</Typography>
-        </Box>
-
-        {event.acknowledged_at && (
+        <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
           <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Acknowledged At
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Event ID
             </Typography>
-            <Typography variant="body1">{formatDate(event.acknowledged_at)}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
+                {event.event_id}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => handleCopy(event.event_id, 'eventId')}
+                color={copied.eventId ? 'success' : 'default'}
+              >
+                <ContentCopyIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
-        )}
 
-        {event.metadata && Object.keys(event.metadata).length > 0 && (
           <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Metadata
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Source
             </Typography>
-            <Paper sx={{ p: 2, backgroundColor: 'grey.50' }}>
-              <JsonView value={event.metadata} />
+            <Typography variant="body1">{event.source}</Typography>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Event Type
+            </Typography>
+            <Typography variant="body1">{event.event_type}</Typography>
+          </Box>
+
+          {event.acknowledged_at && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Acknowledged At
+              </Typography>
+              <Typography variant="body1">{formatDate(event.acknowledged_at)}</Typography>
+            </Box>
+          )}
+
+          {event.metadata && Object.keys(event.metadata).length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontWeight: 600 }}>
+                Metadata
+              </Typography>
+              <Paper sx={{ p: 2, backgroundColor: 'rgba(0,0,0,0.02)' }}>
+                <JsonView value={event.metadata} />
+              </Paper>
+            </Box>
+          )}
+
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Payload
+              </Typography>
+              <Button
+                size="small"
+                startIcon={<ContentCopyIcon />}
+                onClick={() => handleCopy(JSON.stringify(event.payload, null, 2), 'payload')}
+              >
+                {copied.payload ? 'Copied!' : 'Copy Payload'}
+              </Button>
+            </Box>
+            <Paper sx={{ p: 2, backgroundColor: 'rgba(0,0,0,0.02)' }}>
+              <JsonView value={event.payload} />
             </Paper>
           </Box>
-        )}
-
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="subtitle2" color="text.secondary">
-              Payload
-            </Typography>
-            <Button
-              size="small"
-              startIcon={<ContentCopyIcon />}
-              onClick={() => handleCopy(JSON.stringify(event.payload, null, 2), 'payload')}
-            >
-              {copied.payload ? 'Copied!' : 'Copy Payload'}
-            </Button>
-          </Box>
-          <Paper sx={{ p: 2, backgroundColor: 'grey.50', maxHeight: 500, overflow: 'auto' }}>
-            <JsonView value={event.payload} />
-          </Paper>
         </Box>
       </Paper>
 

@@ -8,6 +8,8 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Typography,
+  Divider,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -40,17 +42,32 @@ const Sidebar = () => {
   };
 
   const drawerContent = (
-    <Box sx={{ pt: 2 }}>
-      <List>
+    <Box sx={{ pt: 2, height: '100%', backgroundColor: '#fafbfc', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ px: 2, mb: 1 }}>
+        <Typography
+          variant="overline"
+          sx={{
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            color: 'text.secondary',
+            textTransform: 'uppercase',
+          }}
+        >
+          MENU
+        </Typography>
+      </Box>
+      <List sx={{ flexGrow: 1, px: 1 }}>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
-            <ListItem key={item.text} disablePadding sx={{ px: 1 }}>
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 selected={isActive}
                 onClick={() => handleNavigation(item.path)}
                 sx={{
-                  borderRadius: 1,
+                  borderRadius: 2,
+                  py: 1.25,
                   '&.Mui-selected': {
                     backgroundColor: 'primary.main',
                     color: 'white',
@@ -62,19 +79,24 @@ const Sidebar = () => {
                     },
                   },
                   '&:hover': {
-                    backgroundColor: 'action.hover',
+                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
                   },
                 }}
               >
                 <ListItemIcon
                   sx={{
-                    color: isActive ? 'white' : 'inherit',
+                    color: isActive ? 'white' : 'text.secondary',
                     minWidth: 40,
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
-                <ListItemText primary={item.text} />
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                />
               </ListItemButton>
             </ListItem>
           );
@@ -116,7 +138,9 @@ const Sidebar = () => {
           position: 'relative',
           height: '100%',
           borderRight: '1px solid',
-          borderColor: 'divider',
+          borderColor: 'rgba(0,0,0,0.08)',
+          backgroundColor: '#fafbfc',
+          overflow: 'hidden',
         },
       }}
     >
