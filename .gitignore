@@ -49,10 +49,13 @@ htmlcov/
 
 # Logs
 *.log
+deploy.log
 
 # AWS SAM
 .aws-sam/
 samconfig.toml
+lambda-deployment.zip
+.deploy/
 
 # Python packages installed in project root (should be in venv or installed by SAM)
 *.dist-info/

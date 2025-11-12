@@ -53,7 +53,7 @@
 - [x] API keys created in production DynamoDB
 - [x] CloudWatch logs verified
 - [x] Build script created (`scripts/build_lambda_package.sh`)
-- [x] Deployment test scripts created (`scripts/test_deployment.sh`, `scripts/test_deployment_simple.sh`)
+- [x] Deployment test scripts created (`scripts/test_deployment.sh`)
 - [x] Browser testing completed (health endpoint verified)
 - [x] All endpoints verified working in production
 
