@@ -7,14 +7,19 @@ import {
   Box,
   Typography,
   CircularProgress,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import ClearIcon from '@mui/icons-material/Clear';
+import MenuIcon from '@mui/icons-material/Menu';
 import { useApiKey } from '../../hooks/useApiKey';
 import { healthCheck } from '../../services/api';
 
-const Header = () => {
+const Header = ({ onMenuClick }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { apiKey, setApiKey, clearApiKey } = useApiKey();
   const [validationStatus, setValidationStatus] = useState('idle'); // 'idle', 'checking', 'valid', 'invalid'
   const [debounceTimer, setDebounceTimer] = useState(null);
@@ -76,9 +81,22 @@ const Header = () => {
   return (
     <AppBar position="static" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, height: 64 }}>
       <Toolbar sx={{ width: '100%', px: { xs: 2, sm: 3 }, height: 64, minHeight: '64px !important', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, fontWeight: 600 }}>
-          Triggers API
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {isMobile && onMenuClick && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={onMenuClick}
+              sx={{ mr: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Typography variant="h6" component="div" sx={{ flexGrow: 0, fontWeight: 600 }}>
+            Triggers API
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <TextField
             label={isFocused || apiKey ? '' : 'API Key'}

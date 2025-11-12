@@ -165,6 +165,26 @@ async def add_request_id_and_context(request: Request, call_next):
     try:
         response = await call_next(request)
         
+        # Intercept 405 Method Not Allowed responses and format them
+        if response.status_code == 405:
+            allowed_methods = response.headers.get("Allow", "GET, POST, PUT, DELETE, OPTIONS")
+            return JSONResponse(
+                status_code=405,
+                content={
+                    "error": {
+                        "code": "METHOD_NOT_ALLOWED",
+                        "message": f"Method {request.method} is not allowed for this endpoint",
+                        "details": {
+                            "method": request.method,
+                            "path": request.url.path,
+                            "allowed_methods": allowed_methods.split(", ") if isinstance(allowed_methods, str) else allowed_methods
+                        },
+                        "request_id": request_id
+                    }
+                },
+                headers={"Allow": allowed_methods, "X-Request-ID": request_id}
+            )
+        
         # Calculate duration
         duration_ms = (time.perf_counter() - start_time) * 1000
         request.state.duration_ms = duration_ms
@@ -389,6 +409,34 @@ async def generic_exception_handler(request: Request, exc: Exception):
                 "request_id": request_id
             }
         }
+    )
+
+
+# Root endpoint
+@app.get("/")
+async def root(request: Request):
+    """Root endpoint providing API information."""
+    request_id = getattr(request.state, 'request_id', generate_uuid())
+    base_url = str(request.base_url).rstrip('/')
+    
+    return JSONResponse(
+        content={
+            "name": "Zapier Triggers API",
+            "version": "1.0.0",
+            "status": "operational",
+            "documentation": {
+                "swagger_ui": f"{base_url}/docs",
+                "redoc": f"{base_url}/redoc",
+                "openapi_spec": f"{base_url}/openapi.json"
+            },
+            "endpoints": {
+                "health": f"{base_url}/v1/health",
+                "events": f"{base_url}/v1/events",
+                "inbox": f"{base_url}/v1/inbox"
+            },
+            "request_id": request_id
+        },
+        status_code=200
     )
 
 

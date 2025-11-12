@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box } from '@mui/material';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
 const Layout = ({ children }) => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleDrawerClose = () => {
+    setMobileOpen(false);
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
-      <Header />
+      <Header onMenuClick={handleDrawerToggle} />
       <Box sx={{ display: 'flex', flex: 1, width: '100%', overflow: 'hidden', minHeight: 0 }}>
-        <Sidebar />
+        <Sidebar mobileOpen={mobileOpen} onMobileClose={handleDrawerClose} />
         <Box
           component="main"
           sx={{

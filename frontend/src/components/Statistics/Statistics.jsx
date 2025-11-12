@@ -230,13 +230,39 @@ const Statistics = () => {
         </Grid>
       </Grid>
 
-      <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0, display: 'flex', flexDirection: 'row', gap: 2 }}>
+      <Box
+        sx={{
+          flex: 1,
+          overflow: 'auto',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+        }}
+      >
         {stats.sourceData.length > 0 && (
-          <Paper sx={{ p: 3, flexShrink: 0, flex: '1 1 50%', display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+          <Paper
+            sx={{
+              p: { xs: 2, sm: 3 },
+              flexShrink: 0,
+              flex: { xs: '0 0 auto', md: '1 1 50%' },
+              display: 'flex',
+              flexDirection: 'column',
+              height: { xs: 'auto', md: '100%' },
+              maxHeight: { xs: 'none', md: '100%' },
+              overflow: 'hidden',
+            }}
+          >
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, flexShrink: 0 }}>
               Events by Source
             </Typography>
-            <Box sx={{ flex: 1, width: '100%', minHeight: 400 }}>
+            <Box
+              sx={{
+                width: '100%',
+                height: { xs: 200, sm: 250, md: 300 },
+                flexShrink: 0,
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -245,7 +271,7 @@ const Statistics = () => {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => (percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : '')}
-                    outerRadius={120}
+                    outerRadius="60%"
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -254,7 +280,13 @@ const Statistics = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend
+                    wrapperStyle={{ fontSize: '0.75rem' }}
+                    iconSize={10}
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    align="center"
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </Box>
@@ -262,11 +294,28 @@ const Statistics = () => {
         )}
 
         {stats.typeData.length > 0 && (
-          <Paper sx={{ p: 3, flexShrink: 0, flex: '1 1 50%', display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+          <Paper
+            sx={{
+              p: { xs: 2, sm: 3 },
+              flexShrink: 0,
+              flex: { xs: '0 0 auto', md: '1 1 50%' },
+              display: 'flex',
+              flexDirection: 'column',
+              height: { xs: 'auto', md: '100%' },
+              maxHeight: { xs: 'none', md: '100%' },
+              overflow: 'hidden',
+            }}
+          >
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, flexShrink: 0 }}>
               Events by Type
             </Typography>
-            <Box sx={{ flex: 1, width: '100%', minHeight: 400 }}>
+            <Box
+              sx={{
+                width: '100%',
+                height: { xs: 200, sm: 250, md: 300 },
+                flexShrink: 0,
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -275,7 +324,7 @@ const Statistics = () => {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => (percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : '')}
-                    outerRadius={120}
+                    outerRadius="60%"
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -284,7 +333,13 @@ const Statistics = () => {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend
+                    wrapperStyle={{ fontSize: '0.75rem' }}
+                    iconSize={10}
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    align="center"
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </Box>

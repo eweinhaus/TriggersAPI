@@ -20,12 +20,11 @@ import WebhookIcon from '@mui/icons-material/Webhook';
 
 const drawerWidth = 240;
 
-const Sidebar = () => {
+const Sidebar = ({ mobileOpen, onMobileClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const menuItems = [
     { text: 'Send Event', icon: <SendIcon />, path: '/send-event' },
@@ -36,8 +35,8 @@ const Sidebar = () => {
 
   const handleNavigation = (path) => {
     navigate(path);
-    if (isMobile) {
-      setMobileOpen(false);
+    if (isMobile && onMobileClose) {
+      onMobileClose();
     }
   };
 
@@ -109,8 +108,8 @@ const Sidebar = () => {
     return (
       <Drawer
         variant="temporary"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
+        open={mobileOpen || false}
+        onClose={onMobileClose || (() => {})}
         ModalProps={{
           keepMounted: true, // Better open performance on mobile
         }}
