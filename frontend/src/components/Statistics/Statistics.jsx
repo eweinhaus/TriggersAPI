@@ -259,8 +259,11 @@ const Statistics = () => {
             <Box
               sx={{
                 width: '100%',
-                height: { xs: 200, sm: 250, md: 300 },
-                flexShrink: 0,
+                flex: 1,
+                minHeight: { xs: 200, sm: 250, md: 300 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               <ResponsiveContainer width="100%" height="100%">
@@ -312,8 +315,11 @@ const Statistics = () => {
             <Box
               sx={{
                 width: '100%',
-                height: { xs: 200, sm: 250, md: 300 },
-                flexShrink: 0,
+                flex: 1,
+                minHeight: { xs: 200, sm: 250, md: 300 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               <ResponsiveContainer width="100%" height="100%">
